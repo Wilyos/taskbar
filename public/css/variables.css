@@ -1,0 +1,86 @@
+/* Variables de Diseño - Paleta y Tokens de Interfaz */
+:root {
+  /* Tipografía */
+  --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Modo Oscuro (Por Defecto) */
+  --bg-app: #090d16;
+  --bg-surface: rgba(18, 24, 38, 0.75);
+  --bg-surface-solid: #121826;
+  --bg-card: rgba(26, 34, 52, 0.65);
+  --bg-card-hover: rgba(36, 48, 74, 0.85);
+  --bg-input: rgba(15, 21, 34, 0.8);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(99, 102, 241, 0.6);
+  --border-card: rgba(255, 255, 255, 0.06);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Colores de Acento y Marca */
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-glow: rgba(99, 102, 241, 0.25);
+  --secondary: #8b5cf6;
+
+  /* Estados de Tareas */
+  --status-todo: #38bdf8;
+  --status-todo-bg: rgba(56, 189, 248, 0.12);
+  --status-progress: #fbbf24;
+  --status-progress-bg: rgba(251, 191, 36, 0.12);
+  --status-done: #34d399;
+  --status-done-bg: rgba(52, 211, 153, 0.12);
+
+  /* Prioridades */
+  --priority-low: #38bdf8;
+  --priority-low-bg: rgba(56, 189, 248, 0.15);
+  --priority-medium: #fbbf24;
+  --priority-medium-bg: rgba(251, 191, 36, 0.15);
+  --priority-high: #f97316;
+  --priority-high-bg: rgba(249, 115, 22, 0.15);
+  --priority-urgent: #ef4444;
+  --priority-urgent-bg: rgba(239, 68, 68, 0.18);
+
+  /* Sombras y Efectos */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 25px var(--primary-glow);
+  --blur-glass: blur(14px);
+
+  /* Radios */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+
+  /* Transiciones */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modo Claro */
+[data-theme="light"] {
+  --bg-app: #f1f5f9;
+  --bg-surface: rgba(255, 255, 255, 0.85);
+  --bg-surface-solid: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card-hover: #ffffff;
+  --bg-input: #ffffff;
+
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-focus: rgba(99, 102, 241, 0.5);
+  --border-card: rgba(0, 0, 0, 0.06);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 4px 20px rgba(99, 102, 241, 0.15);
+}

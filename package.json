@@ -1,0 +1,21 @@
+{
+  "name": "taskbar-app",
+  "version": "1.0.0",
+  "description": "To-Do List moderno con tablero Kanban y lista clásica, listo para Railway",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["todo", "kanban", "railway", "express", "sqlite", "postgres"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "knex": "^3.1.0",
+    "pg": "^8.13.1",
+    "sqlite3": "^5.1.7"
+  }
+}

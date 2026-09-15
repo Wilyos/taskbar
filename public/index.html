@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taskbar - To-Do List & Tablero Kanban Moderno</title>
+  <meta name="description" content="Gestor moderno de tareas y productividad con vista Kanban y Lista clásica, listo para Railway">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/kanban.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Encabezado Superior -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo">⚡</div>
+        <div class="brand-info">
+          <h1>Taskbar <span class="brand-badge">Railway Ready</span></h1>
+          <p>Organiza tus proyectos y tareas con máxima productividad</p>
+        </div>
+      </div>
+
+      <!-- Métricas y Progreso -->
+      <div class="header-stats">
+        <div class="stat-item">
+          <span class="stat-label">Completadas</span>
+          <span class="stat-value"><span id="statDone">0</span>/<span id="statTotal">0</span></span>
+          <div class="stat-progress-bar">
+            <div class="stat-progress-fill" id="statProgressFill" style="width: 0%;"></div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Progreso</span>
+          <span class="stat-value" id="statPercentage" style="color: var(--status-done);">0%</span>
+        </div>
+      </div>
+
+      <!-- Controles y Acciones -->
+      <div class="header-actions">
+        <div class="view-switcher" role="tablist" aria-label="Cambio de vista">
+          <button id="btnViewKanban" class="view-btn active" title="Vista Tablero Kanban">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+            Kanban
+          </button>
+          <button id="btnViewList" class="view-btn" title="Vista Lista Clásica">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            Lista
+          </button>
+        </div>
+
+        <button id="btnThemeToggle" class="btn-icon" title="Cambiar tema">☀️</button>
+
+        <button id="btnNewTask" class="btn btn-primary">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Nueva Tarea
+        </button>
+      </div>
+    </header>
+
+    <!-- Barra de Búsqueda y Filtros -->
+    <div class="toolbar-container">
+      <div class="search-box">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Buscar por título o descripción..." />
+      </div>
+
+      <div class="filters-group">
+        <select id="filterPriority" class="select-filter" aria-label="Filtrar por prioridad">
+          <option value="all">Todas las Prioridades</option>
+          <option value="urgent">🔴 Urgente</option>
+          <option value="high">🟠 Alta</option>
+          <option value="medium">🟡 Media</option>
+          <option value="low">🔵 Baja</option>
+        </select>
+
+        <select id="filterCategory" class="select-filter" aria-label="Filtrar por categoría">
+          <option value="all">Todas las Categorías</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Contenido: Vista Kanban -->
+    <main id="kanbanView" class="kanban-board">
+      <!-- Columna Por Hacer -->
+      <section class="kanban-column col-todo" data-status="todo">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">Por Hacer</span>
+            <span class="column-count" id="colTodoCount">0</span>
+          </div>
+          <button class="btn-add-quick" title="Añadir tarjeta rápida">+</button>
+        </div>
+        <div class="column-cards-list" id="colTodoList"></div>
+      </section>
+
+      <!-- Columna En Progreso -->
+      <section class="kanban-column col-progress" data-status="in_progress">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">En Progreso</span>
+            <span class="column-count" id="colProgressCount">0</span>
+          </div>
+          <button class="btn-add-quick" title="Añadir tarjeta rápida">+</button>
+        </div>
+        <div class="column-cards-list" id="colProgressList"></div>
+      </section>
+
+      <!-- Columna Completadas -->
+      <section class="kanban-column col-done" data-status="completed">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">Completadas</span>
+            <span class="column-count" id="colDoneCount">0</span>
+          </div>
+          <button class="btn-add-quick" title="Añadir tarjeta rápida">+</button>
+        </div>
+        <div class="column-cards-list" id="colDoneList"></div>
+      </section>
+    </main>
+
+    <!-- Contenido: Vista Lista Clásica -->
+    <main id="listView" class="list-view-container" style="display: none;">
+      <div id="taskListItems"></div>
+    </main>
+  </div>
+
+  <!-- Modal Crear / Editar Tarea -->
+  <div class="modal-backdrop" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">Nueva Tarea</h2>
+        <button type="button" class="btn-icon" id="btnCloseModal" title="Cerrar modal">✕</button>
+      </div>
+
+      <form id="taskForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="taskTitle">Título de la tarea *</label>
+            <input type="text" id="taskTitle" class="form-input" placeholder="Ej: Diseñar arquitectura de base de datos" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskDesc">Descripción (opcional)</label>
+            <textarea id="taskDesc" class="form-textarea" placeholder="Detalles, enlaces, notas importantes..."></textarea>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="taskStatus">Estado</label>
+              <select id="taskStatus" class="form-select">
+                <option value="todo">Por Hacer</option>
+                <option value="in_progress">En Progreso</option>
+                <option value="completed">Completada</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="taskPriority">Prioridad</label>
+              <select id="taskPriority" class="form-select">
+                <option value="low">🔵 Baja</option>
+                <option value="medium" selected>🟡 Media</option>
+                <option value="high">🟠 Alta</option>
+                <option value="urgent">🔴 Urgente</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="taskCategory">Categoría</label>
+              <input type="text" id="taskCategory" class="form-input" placeholder="Ej: Trabajo, Personal, Dev" value="General" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="taskDueDate">Fecha de Vencimiento</label>
+              <input type="date" id="taskDueDate" class="form-input" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitModal">Guardar Tarea</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Contenedor de Toasts -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Script principal -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
