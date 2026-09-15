@@ -56,9 +56,14 @@
 
         <button id="btnThemeToggle" class="btn-icon" title="Cambiar tema">☀️</button>
 
+        <!-- Botón de Administración de Usuarios (Visible solo para wilyos / admin) -->
+        <button id="btnAdminUsers" class="btn btn-secondary" style="display: none; padding: 0.45rem 0.85rem; font-size: 0.82rem; border-color: var(--primary);">
+          👥 Usuarios
+        </button>
+
         <!-- Sección de Usuario / Autenticación -->
         <div id="userAuthSection" class="user-auth-section">
-          <!-- Se inyecta dinámicamente: botón de login o badge de usuario -->
+          <!-- Se inyecta dinámicamente -->
         </div>
 
         <button id="btnNewTask" class="btn btn-primary">
@@ -221,12 +226,12 @@
       <form id="loginForm">
         <div class="modal-body">
           <div style="background: rgba(0, 255, 136, 0.08); border: 1px solid var(--border-subtle); padding: 0.75rem; border-radius: var(--radius-md); font-size: 0.8rem; color: var(--text-secondary);">
-            💡 <strong>Acceso inicial:</strong> Usuario <code>admin</code> y Contraseña <code>admin123</code>, o crea una cuenta nueva.
+            👑 <strong>Admin Maestro:</strong> Usuario <code>wilyos</code> | Contraseña <code>W1597475+</code>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="loginUsername">Usuario</label>
-            <input type="text" id="loginUsername" class="form-input" placeholder="admin" required autocomplete="username" />
+            <input type="text" id="loginUsername" class="form-input" placeholder="wilyos" required autocomplete="username" />
           </div>
 
           <div class="form-group">
@@ -244,6 +249,10 @@
       <!-- Formulario Registro -->
       <form id="registerForm" style="display: none;">
         <div class="modal-body">
+          <div style="background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); padding: 0.75rem; border-radius: var(--radius-md); font-size: 0.8rem; color: var(--priority-medium);">
+            ℹ️ Las cuentas nuevas se registran en estado pendiente y deben ser activadas por el administrador (<strong>wilyos</strong>) para modificar tareas.
+          </div>
+
           <div class="form-group">
             <label class="form-label" for="regName">Nombre Completo</label>
             <input type="text" id="regName" class="form-input" placeholder="Tu Nombre" required />
@@ -265,6 +274,30 @@
           <button type="submit" class="btn btn-primary">Crear Cuenta</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal de Gestión de Usuarios (Exclusivo para wilyos / Admin) -->
+  <div class="modal-backdrop" id="usersModal" role="dialog" aria-modal="true" aria-labelledby="usersModalTitle">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="usersModalTitle">👥 Gestión de Cuentas y Permisos</h2>
+        <button type="button" class="btn-icon" id="btnCloseUsersModal" title="Cerrar modal">✕</button>
+      </div>
+
+      <div class="modal-body" style="max-height: 480px; overflow-y: auto;">
+        <p style="font-size: 0.825rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+          Como administrador maestro (<strong>wilyos</strong>), solo las cuentas que actives podrán crear, editar, mover y eliminar tareas.
+        </p>
+        <div id="usersListContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- Se inyecta dinámicamente -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btnRefreshUsers">Actualizar Lista</button>
+        <button type="button" class="btn btn-primary" id="btnFinishUsersModal">Cerrar</button>
+      </div>
     </div>
   </div>
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const taskModel = require('../models/taskModel');
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, requireActiveUser } = require('../middleware/authMiddleware');
 
 // GET /api/tasks/stats (Público para vista general)
 router.get('/stats', async (req, res) => {
@@ -51,8 +51,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/tasks (PROTEGIDO: Solo usuarios logueados pueden crear tareas)
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/tasks (PROTEGIDO: Requiere estar logueado y cuenta activada por wilyos)
+router.post('/', requireAuth, requireActiveUser, async (req, res) => {
   try {
     const { title, description, status, priority, category, due_date } = req.body;
     if (!title || !title.trim()) {
@@ -75,8 +75,8 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/tasks/:id (PROTEGIDO: Solo usuarios logueados pueden modificar)
-router.put('/:id', requireAuth, async (req, res) => {
+// PUT /api/tasks/:id (PROTEGIDO: Requiere estar logueado y cuenta activada)
+router.put('/:id', requireAuth, requireActiveUser, async (req, res) => {
   try {
     const task = await taskModel.getById(req.params.id);
     if (!task) {
@@ -91,8 +91,8 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/tasks/:id/status (PROTEGIDO: Solo usuarios logueados pueden cambiar estado/mover)
-router.patch('/:id/status', requireAuth, async (req, res) => {
+// PATCH /api/tasks/:id/status (PROTEGIDO: Requiere estar logueado y cuenta activada)
+router.patch('/:id/status', requireAuth, requireActiveUser, async (req, res) => {
   try {
     const { status, position = 0 } = req.body;
     if (!status) {
@@ -112,8 +112,8 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/tasks/:id (PROTEGIDO: Solo usuarios logueados pueden eliminar)
-router.delete('/:id', requireAuth, async (req, res) => {
+// DELETE /api/tasks/:id (PROTEGIDO: Requiere estar logueado y cuenta activada)
+router.delete('/:id', requireAuth, requireActiveUser, async (req, res) => {
   try {
     const success = await taskModel.delete(req.params.id);
     if (!success) {

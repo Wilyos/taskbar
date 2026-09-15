@@ -1,4 +1,4 @@
-// Cliente API con soporte de Autenticación y JWT
+// Cliente API con soporte de Autenticación, JWT y Administración
 const API_BASE = '/api';
 
 export const auth = {
@@ -21,6 +21,14 @@ export const auth = {
   },
   isAuthenticated() {
     return !!this.getToken();
+  },
+  isAdmin() {
+    const u = this.getUser();
+    return u && u.role === 'admin';
+  },
+  isActive() {
+    const u = this.getUser();
+    return u && (u.role === 'admin' || u.is_active);
   }
 };
 
@@ -72,7 +80,30 @@ export const api = {
       auth.clearToken();
       throw new Error('Sesión no válida');
     }
-    return await res.json();
+    const data = await res.json();
+    auth.setUser(data.user);
+    return data;
+  },
+
+  // Administración de Usuarios (Solo wilyos / admin)
+  async getUsers() {
+    const res = await fetch(`${API_BASE}/users`, {
+      headers: getHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al obtener usuarios');
+    return data;
+  },
+
+  async setUserStatus(id, isActive) {
+    const res = await fetch(`${API_BASE}/users/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ is_active: isActive })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al cambiar estado del usuario');
+    return data;
   },
 
   // Tareas

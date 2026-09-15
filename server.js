@@ -6,6 +6,7 @@ require('dotenv').config();
 const { initDb } = require('./src/db');
 const taskRoutes = require('./src/routes/taskRoutes');
 const authRoutes = require('./src/routes/authRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +31,7 @@ app.get('/api/health', (req, res) => {
 
 // Rutas de API
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 
 // Fallback para SPA / index.html

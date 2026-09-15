@@ -51,6 +51,7 @@ const elements = {
   btnThemeToggle: document.getElementById('btnThemeToggle'),
   btnNewTask: document.getElementById('btnNewTask'),
   userAuthSection: document.getElementById('userAuthSection'),
+  btnAdminUsers: document.getElementById('btnAdminUsers'),
 
   // Modal Tarea
   taskModal: document.getElementById('taskModal'),
@@ -79,6 +80,13 @@ const elements = {
   regName: document.getElementById('regName'),
   regUsername: document.getElementById('regUsername'),
   regPassword: document.getElementById('regPassword'),
+
+  // Modal Usuarios (Admin)
+  usersModal: document.getElementById('usersModal'),
+  btnCloseUsersModal: document.getElementById('btnCloseUsersModal'),
+  btnFinishUsersModal: document.getElementById('btnFinishUsersModal'),
+  btnRefreshUsers: document.getElementById('btnRefreshUsers'),
+  usersListContainer: document.getElementById('usersListContainer'),
 
   // Toasts
   toastContainer: document.getElementById('toastContainer')
@@ -115,10 +123,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Renderizar Sección de Usuario en el Header
 function renderAuthSection() {
   if (auth.isAuthenticated() && state.currentUser) {
+    const isAdmin = state.currentUser.role === 'admin';
+    const isActive = isAdmin || state.currentUser.is_active;
+
+    // Mostrar u ocultar botón de gestión de usuarios para admin
+    if (elements.btnAdminUsers) {
+      elements.btnAdminUsers.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+
     elements.userAuthSection.innerHTML = `
-      <div class="user-profile-badge">
-        <span class="user-avatar-dot"></span>
+      <div class="user-profile-badge" title="${isActive ? 'Cuenta Activa con permisos' : 'Cuenta Pendiente de Activación'}">
+        <span class="user-avatar-dot" style="${!isActive ? 'background: var(--status-progress); box-shadow: 0 0 6px var(--status-progress);' : ''}"></span>
         <span>${escapeHtml(state.currentUser.name || state.currentUser.username)}</span>
+        ${!isActive ? '<span style="font-size: 0.68rem; color: var(--status-progress); font-weight: 700;">(Pendiente)</span>' : ''}
+        ${isAdmin ? '<span style="font-size: 0.68rem; color: var(--primary); font-weight: 700;">👑 Admin</span>' : ''}
         <button class="btn-logout" id="btnLogout" title="Cerrar sesión">Salir</button>
       </div>
     `;
@@ -127,6 +145,9 @@ function renderAuthSection() {
       btnLogout.addEventListener('click', handleLogout);
     }
   } else {
+    if (elements.btnAdminUsers) {
+      elements.btnAdminUsers.style.display = 'none';
+    }
     elements.userAuthSection.innerHTML = `
       <button class="btn btn-secondary" id="btnLoginHeader" style="padding: 0.45rem 0.85rem; font-size: 0.82rem;">
         🔐 Iniciar Sesión
@@ -323,19 +344,25 @@ function formatPriority(p) {
   return map[p] || p;
 }
 
-// Control de Permisos de Autenticación
-function ensureAuthenticated(actionMessage = 'modificar tareas') {
+// Control de Permisos de Autenticación y Cuenta Activa
+function ensureCanModify(actionMessage = 'modificar tareas') {
   if (!auth.isAuthenticated()) {
     showToast(`Debes iniciar sesión para ${actionMessage}`, 'error');
     openAuthModal('login');
     return false;
   }
+
+  if (!auth.isActive()) {
+    showToast(`⚠️ Tu cuenta aún no ha sido activada por el administrador (wilyos). Solo puedes visualizar.`, 'error');
+    return false;
+  }
+
   return true;
 }
 
-// Arrastrar y Soltar: Mover tarea entre columnas (Requiere Auth)
+// Arrastrar y Soltar: Mover tarea entre columnas
 async function handleTaskMoved({ id, targetStatus, position }) {
-  if (!ensureAuthenticated('mover tareas en el tablero')) {
+  if (!ensureCanModify('mover tareas en el tablero')) {
     renderCurrentView(); // Revertir visualmente
     return;
   }
@@ -371,10 +398,10 @@ function formatStatus(status) {
   return map[status] || status;
 }
 
-// Checkbox de estado en Lista (Requiere Auth)
+// Checkbox de estado en Lista
 async function toggleTaskStatus(id, checkboxElem) {
   const isChecked = checkboxElem.checked;
-  if (!ensureAuthenticated('cambiar el estado de la tarea')) {
+  if (!ensureCanModify('cambiar el estado de la tarea')) {
     checkboxElem.checked = !isChecked; // Revertir
     return;
   }
@@ -390,9 +417,9 @@ async function toggleTaskStatus(id, checkboxElem) {
   }
 }
 
-// Modal de Creación / Edición (Requiere Auth)
+// Modal de Creación / Edición
 function openCreateModal(defaultStatus = 'todo') {
-  if (!ensureAuthenticated('crear nuevas tareas')) return;
+  if (!ensureCanModify('crear nuevas tareas')) return;
 
   state.editingTaskId = null;
   elements.modalTitle.textContent = 'Nueva Tarea';
@@ -405,7 +432,7 @@ function openCreateModal(defaultStatus = 'todo') {
 }
 
 function openEditModal(id) {
-  if (!ensureAuthenticated('editar tareas')) return;
+  if (!ensureCanModify('editar tareas')) return;
 
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
@@ -430,7 +457,7 @@ function closeModal() {
 
 async function handleFormSubmit(e) {
   e.preventDefault();
-  if (!ensureAuthenticated('guardar tareas')) return;
+  if (!ensureCanModify('guardar tareas')) return;
 
   const title = elements.inputTitle.value.trim();
   if (!title) {
@@ -463,7 +490,7 @@ async function handleFormSubmit(e) {
 }
 
 async function deleteTask(id) {
-  if (!ensureAuthenticated('eliminar tareas')) return;
+  if (!ensureCanModify('eliminar tareas')) return;
   if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
   try {
     await api.deleteTask(id);
@@ -510,7 +537,14 @@ async function handleLoginSubmit(e) {
     state.currentUser = data.user;
     renderAuthSection();
     closeAuthModal();
-    showToast(`¡Bienvenido de nuevo, ${data.user.name || data.user.username}! ⚡`, 'success');
+
+    if (data.user.role === 'admin') {
+      showToast(`¡Bienvenido Administrador Maestro, ${data.user.name}! 👑`, 'success');
+    } else if (!data.user.is_active) {
+      showToast(`Bienvenido ${data.user.name}. Tu cuenta está pendiente de activación por wilyos.`, 'info');
+    } else {
+      showToast(`¡Bienvenido de nuevo, ${data.user.name}! ⚡`, 'success');
+    }
   } catch (error) {
     showToast(error.message || 'Error al iniciar sesión', 'error');
   }
@@ -527,7 +561,7 @@ async function handleRegisterSubmit(e) {
     state.currentUser = data.user;
     renderAuthSection();
     closeAuthModal();
-    showToast(`¡Cuenta creada con éxito! Bienvenido, ${data.user.name} ⚡`, 'success');
+    showToast(`Cuenta creada. Queda pendiente de activación por el admin (wilyos).`, 'info');
   } catch (error) {
     showToast(error.message || 'Error al registrar la cuenta', 'error');
   }
@@ -538,6 +572,83 @@ function handleLogout() {
   state.currentUser = null;
   renderAuthSection();
   showToast('Sesión cerrada correctamente', 'info');
+}
+
+// Modal de Gestión de Usuarios (Exclusivo wilyos / Admin)
+async function openUsersModal() {
+  if (!auth.isAdmin()) return;
+  elements.usersModal.classList.add('is-open');
+  await loadAndRenderUsers();
+}
+
+function closeUsersModal() {
+  elements.usersModal.classList.remove('is-open');
+}
+
+async function loadAndRenderUsers() {
+  try {
+    elements.usersListContainer.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 1rem;">Cargando usuarios...</div>';
+    const users = await api.getUsers();
+
+    if (users.length === 0) {
+      elements.usersListContainer.innerHTML = '<div style="color: var(--text-dim); text-align: center;">No hay usuarios registrados.</div>';
+      return;
+    }
+
+    elements.usersListContainer.innerHTML = users.map(u => {
+      const isMasterAdmin = u.username === 'wilyos';
+      const isActive = u.role === 'admin' || u.is_active;
+
+      return `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem; background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-md); gap: 0.75rem;">
+          <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <strong style="color: var(--text-primary); font-size: 0.9rem;">${escapeHtml(u.name)}</strong>
+              <code style="color: var(--text-dim); font-size: 0.75rem;">@${escapeHtml(u.username)}</code>
+              ${isMasterAdmin ? '<span class="badge" style="background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid rgba(0,255,136,0.4);">👑 Master Admin</span>' : ''}
+            </div>
+            <span style="font-size: 0.72rem; color: var(--text-dim);">Registrado: ${new Date(u.created_at).toLocaleDateString()}</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            ${isActive ? `
+              <span class="badge" style="background: var(--status-done-bg); color: var(--primary); border: 1px solid rgba(0,255,136,0.3);">
+                ✔ Activa (Puede editar)
+              </span>
+            ` : `
+              <span class="badge" style="background: var(--status-progress-bg); color: var(--status-progress); border: 1px solid rgba(250,204,21,0.3);">
+                ⏳ Pendiente (Solo lectura)
+              </span>
+            `}
+
+            ${isMasterAdmin ? `
+              <button class="btn btn-secondary" disabled style="opacity: 0.6; padding: 0.35rem 0.7rem; font-size: 0.75rem;">Protegido</button>
+            ` : isActive ? `
+              <button class="btn btn-secondary" onclick="window.app.toggleUserStatus(${u.id}, false)" style="color: var(--priority-urgent); border-color: rgba(244,63,94,0.3); padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+                Desactivar
+              </button>
+            ` : `
+              <button class="btn btn-primary" onclick="window.app.toggleUserStatus(${u.id}, true)" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+                ⚡ Activar Cuenta
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    elements.usersListContainer.innerHTML = `<div style="color: var(--priority-urgent);">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function toggleUserStatus(id, newStatus) {
+  try {
+    await api.setUserStatus(id, newStatus);
+    showToast(`Estado de usuario actualizado correctamente`, 'success');
+    await loadAndRenderUsers();
+  } catch (error) {
+    showToast(error.message || 'Error al actualizar usuario', 'error');
+  }
 }
 
 // Cambio de Vista (Kanban / Lista)
@@ -587,7 +698,7 @@ function showToast(message, type = 'info') {
     toast.style.transform = 'translateY(10px)';
     toast.style.transition = 'all 0.25s ease';
     setTimeout(() => toast.remove(), 250);
-  }, 3200);
+  }, 3500);
 }
 
 // Escapar HTML para prevenir XSS
@@ -642,6 +753,25 @@ function setupEventListeners() {
   elements.loginForm.addEventListener('submit', handleLoginSubmit);
   elements.registerForm.addEventListener('submit', handleRegisterSubmit);
 
+  // Modal Usuarios (Admin)
+  if (elements.btnAdminUsers) {
+    elements.btnAdminUsers.addEventListener('click', openUsersModal);
+  }
+  if (elements.btnCloseUsersModal) {
+    elements.btnCloseUsersModal.addEventListener('click', closeUsersModal);
+  }
+  if (elements.btnFinishUsersModal) {
+    elements.btnFinishUsersModal.addEventListener('click', closeUsersModal);
+  }
+  if (elements.btnRefreshUsers) {
+    elements.btnRefreshUsers.addEventListener('click', loadAndRenderUsers);
+  }
+  if (elements.usersModal) {
+    elements.usersModal.addEventListener('click', (e) => {
+      if (e.target === elements.usersModal) closeUsersModal();
+    });
+  }
+
   // Filtros
   let searchTimeout;
   elements.searchInput.addEventListener('input', (e) => {
@@ -667,6 +797,7 @@ function setupEventListeners() {
     if (e.key === 'Escape') {
       if (elements.taskModal.classList.contains('is-open')) closeModal();
       if (elements.authModal.classList.contains('is-open')) closeAuthModal();
+      if (elements.usersModal.classList.contains('is-open')) closeUsersModal();
     }
   });
 }
@@ -675,5 +806,6 @@ function setupEventListeners() {
 window.app = {
   openEditModal,
   deleteTask,
-  toggleTaskStatus
+  toggleTaskStatus,
+  toggleUserStatus
 };

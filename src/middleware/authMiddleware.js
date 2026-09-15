@@ -32,4 +32,33 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, JWT_SECRET };
+function requireActiveUser(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Debes iniciar sesión.' });
+  }
+
+  // El administrador siempre tiene permisos completos
+  if (req.user.role === 'admin') {
+    return next();
+  }
+
+  // Verificar si la cuenta ha sido activada
+  if (!req.user.is_active) {
+    return res.status(403).json({ 
+      error: 'Tu cuenta aún no ha sido activada por el administrador (wilyos). Solo puedes visualizar el tablero hasta que sea aprobada.' 
+    });
+  }
+
+  next();
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ 
+      error: 'Acceso denegado. Se requieren permisos de administrador (wilyos).' 
+    });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireActiveUser, requireAdmin, JWT_SECRET };

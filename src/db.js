@@ -7,7 +7,6 @@ require('dotenv').config();
 let db;
 
 if (process.env.DATABASE_URL) {
-  // Railway o producción con PostgreSQL
   console.log('🔗 Conectando a PostgreSQL mediante DATABASE_URL...');
   db = knex({
     client: 'pg',
@@ -18,7 +17,6 @@ if (process.env.DATABASE_URL) {
     pool: { min: 2, max: 10 }
   });
 } else {
-  // Entorno local o Railway con SQLite
   const dataDir = path.join(__dirname, '..', 'data');
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -47,22 +45,49 @@ async function initDb() {
       table.string('password_hash', 255).notNullable();
       table.string('name', 120).notNullable();
       table.string('role', 50).notNullable().defaultTo('user');
+      table.boolean('is_active').notNullable().defaultTo(false);
       table.timestamp('created_at').defaultTo(db.fn.now());
     });
+  } else {
+    // Si la tabla ya existe, verificar si tiene la columna is_active
+    const hasIsActive = await db.schema.hasColumn('users', 'is_active');
+    if (!hasIsActive) {
+      console.log('🛠 Agregando columna "is_active" a la tabla users...');
+      await db.schema.table('users', (table) => {
+        table.boolean('is_active').notNullable().defaultTo(false);
+      });
+    }
+  }
 
-    // Usuario administrador por defecto: admin / admin123
-    console.log('👤 Creando usuario administrador inicial (admin / admin123)...');
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash('admin123', salt);
+  // 2. Administrador Maestro wilyos (W1597475+)
+  console.log('👑 Verificando cuenta de administrador maestro (wilyos)...');
+  const salt = await bcrypt.genSalt(10);
+  const wilyosHash = await bcrypt.hash('W1597475+', salt);
+
+  const existingWilyos = await db('users').where({ username: 'wilyos' }).first();
+  if (!existingWilyos) {
+    console.log('👤 Creando administrador maestro wilyos...');
     await db('users').insert({
-      username: 'admin',
-      password_hash: hash,
-      name: 'Administrador',
-      role: 'admin'
+      username: 'wilyos',
+      password_hash: wilyosHash,
+      name: 'Wilyos (Admin)',
+      role: 'admin',
+      is_active: true
+    });
+  } else {
+    // Actualizar contraseña y asegurar rol admin y activo
+    await db('users').where({ username: 'wilyos' }).update({
+      password_hash: wilyosHash,
+      name: 'Wilyos (Admin)',
+      role: 'admin',
+      is_active: true
     });
   }
 
-  // 2. Tabla de Tareas
+  // Asegurar que admin inicial también tenga is_active si existe
+  await db('users').where({ username: 'admin' }).update({ is_active: true });
+
+  // 3. Tabla de Tareas
   const hasTasksTable = await db.schema.hasTable('tasks');
   if (!hasTasksTable) {
     console.log('🛠 Creando tabla "tasks"...');
@@ -70,8 +95,8 @@ async function initDb() {
       table.increments('id').primary();
       table.string('title', 255).notNullable();
       table.text('description').nullable();
-      table.string('status', 50).notNullable().defaultTo('todo'); // 'todo', 'in_progress', 'completed'
-      table.string('priority', 50).notNullable().defaultTo('medium'); // 'low', 'medium', 'high', 'urgent'
+      table.string('status', 50).notNullable().defaultTo('todo');
+      table.string('priority', 50).notNullable().defaultTo('medium');
       table.string('category', 100).notNullable().defaultTo('General');
       table.string('due_date', 50).nullable();
       table.integer('position').notNullable().defaultTo(0);
@@ -79,7 +104,6 @@ async function initDb() {
       table.timestamp('updated_at').defaultTo(db.fn.now());
     });
 
-    // Semillas iniciales para dar vida al tablero de inmediato
     console.log('🌱 Insertando tareas de ejemplo iniciales...');
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];

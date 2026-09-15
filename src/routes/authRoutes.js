@@ -26,17 +26,29 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Este nombre de usuario ya está registrado.' });
     }
 
-    const newUser = await userModel.create({ username, password, name });
-    const token = jwt.sign(
-      { id: newUser.id, username: newUser.username, name: newUser.name, role: newUser.role },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    // Nuevos usuarios se crean con is_active: false (pendiente de aprobación de wilyos)
+    const newUser = await userModel.create({
+      username,
+      password,
+      name,
+      role: 'user',
+      is_active: false
+    });
+
+    const userPayload = {
+      id: newUser.id,
+      username: newUser.username,
+      name: newUser.name,
+      role: newUser.role,
+      is_active: newUser.is_active
+    };
+
+    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '30d' });
 
     res.status(201).json({
-      message: 'Usuario registrado exitosamente',
+      message: 'Cuenta registrada. Está pendiente de activación por el administrador (wilyos).',
       token,
-      user: newUser
+      user: userPayload
     });
   } catch (error) {
     console.error('Error al registrar usuario:', error);
@@ -67,7 +79,8 @@ router.post('/login', async (req, res) => {
       id: user.id,
       username: user.username,
       name: user.name,
-      role: user.role
+      role: user.role,
+      is_active: !!user.is_active
     };
 
     const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '30d' });
