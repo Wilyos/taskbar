@@ -1,11 +1,12 @@
-import { api } from './api.js';
+import { api, auth } from './api.js';
 import { initKanbanDnD } from './kanban.js';
 
 // Estado de la Aplicación
 const state = {
   tasks: [],
   stats: null,
-  activeView: localStorage.getItem('taskbar_view') || 'kanban', // 'kanban' | 'list'
+  currentUser: auth.getUser(),
+  activeView: localStorage.getItem('taskbar_view') || 'kanban',
   theme: localStorage.getItem('taskbar_theme') || 'dark',
   filters: {
     search: '',
@@ -49,8 +50,9 @@ const elements = {
   // Theme & Actions
   btnThemeToggle: document.getElementById('btnThemeToggle'),
   btnNewTask: document.getElementById('btnNewTask'),
+  userAuthSection: document.getElementById('userAuthSection'),
 
-  // Modal
+  // Modal Tarea
   taskModal: document.getElementById('taskModal'),
   taskForm: document.getElementById('taskForm'),
   modalTitle: document.getElementById('modalTitle'),
@@ -63,6 +65,21 @@ const elements = {
   inputCategory: document.getElementById('taskCategory'),
   inputDueDate: document.getElementById('taskDueDate'),
 
+  // Modal Autenticación
+  authModal: document.getElementById('authModal'),
+  btnCloseAuthModal: document.getElementById('btnCloseAuthModal'),
+  btnCancelAuthModal: document.getElementById('btnCancelAuthModal'),
+  btnCancelRegModal: document.getElementById('btnCancelRegModal'),
+  tabBtnLogin: document.getElementById('tabBtnLogin'),
+  tabBtnRegister: document.getElementById('tabBtnRegister'),
+  loginForm: document.getElementById('loginForm'),
+  registerForm: document.getElementById('registerForm'),
+  loginUsername: document.getElementById('loginUsername'),
+  loginPassword: document.getElementById('loginPassword'),
+  regName: document.getElementById('regName'),
+  regUsername: document.getElementById('regUsername'),
+  regPassword: document.getElementById('regPassword'),
+
   // Toasts
   toastContainer: document.getElementById('toastContainer')
 };
@@ -71,14 +88,56 @@ const elements = {
 document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(state.theme);
   switchView(state.activeView);
+  renderAuthSection();
   setupEventListeners();
 
   initKanbanDnD({
     onTaskMoved: handleTaskMoved
   });
 
+  // Validar sesión si hay token guardado
+  if (auth.isAuthenticated()) {
+    try {
+      const res = await api.getMe();
+      state.currentUser = res.user;
+      auth.setUser(res.user);
+      renderAuthSection();
+    } catch (e) {
+      auth.clearToken();
+      state.currentUser = null;
+      renderAuthSection();
+    }
+  }
+
   await loadData();
 });
+
+// Renderizar Sección de Usuario en el Header
+function renderAuthSection() {
+  if (auth.isAuthenticated() && state.currentUser) {
+    elements.userAuthSection.innerHTML = `
+      <div class="user-profile-badge">
+        <span class="user-avatar-dot"></span>
+        <span>${escapeHtml(state.currentUser.name || state.currentUser.username)}</span>
+        <button class="btn-logout" id="btnLogout" title="Cerrar sesión">Salir</button>
+      </div>
+    `;
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', handleLogout);
+    }
+  } else {
+    elements.userAuthSection.innerHTML = `
+      <button class="btn btn-secondary" id="btnLoginHeader" style="padding: 0.45rem 0.85rem; font-size: 0.82rem;">
+        🔐 Iniciar Sesión
+      </button>
+    `;
+    const btnLoginHeader = document.getElementById('btnLoginHeader');
+    if (btnLoginHeader) {
+      btnLoginHeader.addEventListener('click', () => openAuthModal('login'));
+    }
+  }
+}
 
 // Carga de Datos
 async function loadData() {
@@ -177,7 +236,7 @@ function renderList() {
             type="checkbox" 
             class="custom-checkbox" 
             ${isCompleted ? 'checked' : ''} 
-            onchange="window.app.toggleTaskStatus(${task.id}, this.checked)"
+            onchange="window.app.toggleTaskStatus(${task.id}, this)"
             title="Marcar como ${isCompleted ? 'pendiente' : 'completada'}"
           />
           <div class="task-info">
@@ -264,14 +323,28 @@ function formatPriority(p) {
   return map[p] || p;
 }
 
-// Arrastrar y Soltar: Mover tarea entre columnas
+// Control de Permisos de Autenticación
+function ensureAuthenticated(actionMessage = 'modificar tareas') {
+  if (!auth.isAuthenticated()) {
+    showToast(`Debes iniciar sesión para ${actionMessage}`, 'error');
+    openAuthModal('login');
+    return false;
+  }
+  return true;
+}
+
+// Arrastrar y Soltar: Mover tarea entre columnas (Requiere Auth)
 async function handleTaskMoved({ id, targetStatus, position }) {
+  if (!ensureAuthenticated('mover tareas en el tablero')) {
+    renderCurrentView(); // Revertir visualmente
+    return;
+  }
+
   const taskId = parseInt(id, 10);
   const task = state.tasks.find(t => t.id === taskId);
   if (!task) return;
 
   const oldStatus = task.status;
-  // Actualización optimista
   task.status = targetStatus;
   task.position = position;
   renderCurrentView();
@@ -284,7 +357,7 @@ async function handleTaskMoved({ id, targetStatus, position }) {
       showToast(`Tarea movida a "${formatStatus(targetStatus)}"`, 'success');
     }
   } catch (error) {
-    showToast('Error al mover la tarea', 'error');
+    showToast(error.message || 'Error al mover la tarea', 'error');
     await loadData();
   }
 }
@@ -298,20 +371,29 @@ function formatStatus(status) {
   return map[status] || status;
 }
 
-// Checkbox de estado en Lista
-async function toggleTaskStatus(id, isChecked) {
+// Checkbox de estado en Lista (Requiere Auth)
+async function toggleTaskStatus(id, checkboxElem) {
+  const isChecked = checkboxElem.checked;
+  if (!ensureAuthenticated('cambiar el estado de la tarea')) {
+    checkboxElem.checked = !isChecked; // Revertir
+    return;
+  }
+
   const newStatus = isChecked ? 'completed' : 'todo';
   try {
     await api.updateStatusAndPosition(id, newStatus, 0);
     await loadData();
-    showToast(isChecked ? '¡Tarea completada! 🎉' : 'Tarea marcada como pendiente', 'success');
+    showToast(isChecked ? '¡Tarea completada! ⚡' : 'Tarea marcada como pendiente', 'success');
   } catch (error) {
-    showToast('Error al cambiar el estado de la tarea', 'error');
+    checkboxElem.checked = !isChecked;
+    showToast(error.message || 'Error al cambiar estado', 'error');
   }
 }
 
-// Modal de Creación / Edición
+// Modal de Creación / Edición (Requiere Auth)
 function openCreateModal(defaultStatus = 'todo') {
+  if (!ensureAuthenticated('crear nuevas tareas')) return;
+
   state.editingTaskId = null;
   elements.modalTitle.textContent = 'Nueva Tarea';
   elements.taskForm.reset();
@@ -323,6 +405,8 @@ function openCreateModal(defaultStatus = 'todo') {
 }
 
 function openEditModal(id) {
+  if (!ensureAuthenticated('editar tareas')) return;
+
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
 
@@ -346,6 +430,8 @@ function closeModal() {
 
 async function handleFormSubmit(e) {
   e.preventDefault();
+  if (!ensureAuthenticated('guardar tareas')) return;
+
   const title = elements.inputTitle.value.trim();
   if (!title) {
     showToast('El título no puede estar vacío', 'error');
@@ -377,14 +463,81 @@ async function handleFormSubmit(e) {
 }
 
 async function deleteTask(id) {
+  if (!ensureAuthenticated('eliminar tareas')) return;
   if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
   try {
     await api.deleteTask(id);
     showToast('Tarea eliminada', 'success');
     await loadData();
   } catch (error) {
-    showToast('Error al eliminar la tarea', 'error');
+    showToast(error.message || 'Error al eliminar la tarea', 'error');
   }
+}
+
+// Modal de Autenticación (Login / Registro)
+function openAuthModal(tab = 'login') {
+  elements.authModal.classList.add('is-open');
+  switchAuthTab(tab);
+}
+
+function closeAuthModal() {
+  elements.authModal.classList.remove('is-open');
+}
+
+function switchAuthTab(tab) {
+  if (tab === 'login') {
+    elements.tabBtnLogin.classList.add('active');
+    elements.tabBtnRegister.classList.remove('active');
+    elements.loginForm.style.display = 'block';
+    elements.registerForm.style.display = 'none';
+    elements.loginUsername.focus();
+  } else {
+    elements.tabBtnLogin.classList.remove('active');
+    elements.tabBtnRegister.classList.add('active');
+    elements.loginForm.style.display = 'none';
+    elements.registerForm.style.display = 'block';
+    elements.regName.focus();
+  }
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const username = elements.loginUsername.value.trim();
+  const password = elements.loginPassword.value;
+
+  try {
+    const data = await api.login({ username, password });
+    state.currentUser = data.user;
+    renderAuthSection();
+    closeAuthModal();
+    showToast(`¡Bienvenido de nuevo, ${data.user.name || data.user.username}! ⚡`, 'success');
+  } catch (error) {
+    showToast(error.message || 'Error al iniciar sesión', 'error');
+  }
+}
+
+async function handleRegisterSubmit(e) {
+  e.preventDefault();
+  const name = elements.regName.value.trim();
+  const username = elements.regUsername.value.trim();
+  const password = elements.regPassword.value;
+
+  try {
+    const data = await api.register({ name, username, password });
+    state.currentUser = data.user;
+    renderAuthSection();
+    closeAuthModal();
+    showToast(`¡Cuenta creada con éxito! Bienvenido, ${data.user.name} ⚡`, 'success');
+  } catch (error) {
+    showToast(error.message || 'Error al registrar la cuenta', 'error');
+  }
+}
+
+function handleLogout() {
+  auth.clearToken();
+  state.currentUser = null;
+  renderAuthSection();
+  showToast('Sesión cerrada correctamente', 'info');
 }
 
 // Cambio de Vista (Kanban / Lista)
@@ -424,7 +577,7 @@ function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `
-    <span>${type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'}</span>
+    <span>${type === 'success' ? '⚡' : type === 'error' ? '⚠️' : 'ℹ️'}</span>
     <span>${escapeHtml(message)}</span>
   `;
   elements.toastContainer.appendChild(toast);
@@ -434,7 +587,7 @@ function showToast(message, type = 'info') {
     toast.style.transform = 'translateY(10px)';
     toast.style.transition = 'all 0.25s ease';
     setTimeout(() => toast.remove(), 250);
-  }, 3000);
+  }, 3200);
 }
 
 // Escapar HTML para prevenir XSS
@@ -469,13 +622,25 @@ function setupEventListeners() {
     });
   });
 
-  // Modal
+  // Modal Tarea
   elements.btnCloseModal.addEventListener('click', closeModal);
   elements.btnCancelModal.addEventListener('click', closeModal);
   elements.taskModal.addEventListener('click', (e) => {
     if (e.target === elements.taskModal) closeModal();
   });
   elements.taskForm.addEventListener('submit', handleFormSubmit);
+
+  // Modal Autenticación
+  elements.tabBtnLogin.addEventListener('click', () => switchAuthTab('login'));
+  elements.tabBtnRegister.addEventListener('click', () => switchAuthTab('register'));
+  elements.btnCloseAuthModal.addEventListener('click', closeAuthModal);
+  elements.btnCancelAuthModal.addEventListener('click', closeAuthModal);
+  elements.btnCancelRegModal.addEventListener('click', closeAuthModal);
+  elements.authModal.addEventListener('click', (e) => {
+    if (e.target === elements.authModal) closeAuthModal();
+  });
+  elements.loginForm.addEventListener('submit', handleLoginSubmit);
+  elements.registerForm.addEventListener('submit', handleRegisterSubmit);
 
   // Filtros
   let searchTimeout;
@@ -499,8 +664,9 @@ function setupEventListeners() {
 
   // Teclas rápidas
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && elements.taskModal.classList.contains('is-open')) {
-      closeModal();
+    if (e.key === 'Escape') {
+      if (elements.taskModal.classList.contains('is-open')) closeModal();
+      if (elements.authModal.classList.contains('is-open')) closeAuthModal();
     }
   });
 }

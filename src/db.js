@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const knex = require('knex');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 let db;
@@ -36,8 +37,34 @@ if (process.env.DATABASE_URL) {
 }
 
 async function initDb() {
-  const hasTable = await db.schema.hasTable('tasks');
-  if (!hasTable) {
+  // 1. Tabla de Usuarios
+  const hasUsersTable = await db.schema.hasTable('users');
+  if (!hasUsersTable) {
+    console.log('🛠 Creando tabla "users"...');
+    await db.schema.createTable('users', (table) => {
+      table.increments('id').primary();
+      table.string('username', 80).notNullable().unique();
+      table.string('password_hash', 255).notNullable();
+      table.string('name', 120).notNullable();
+      table.string('role', 50).notNullable().defaultTo('user');
+      table.timestamp('created_at').defaultTo(db.fn.now());
+    });
+
+    // Usuario administrador por defecto: admin / admin123
+    console.log('👤 Creando usuario administrador inicial (admin / admin123)...');
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash('admin123', salt);
+    await db('users').insert({
+      username: 'admin',
+      password_hash: hash,
+      name: 'Administrador',
+      role: 'admin'
+    });
+  }
+
+  // 2. Tabla de Tareas
+  const hasTasksTable = await db.schema.hasTable('tasks');
+  if (!hasTasksTable) {
     console.log('🛠 Creando tabla "tasks"...');
     await db.schema.createTable('tasks', (table) => {
       table.increments('id').primary();

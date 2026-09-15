@@ -1,55 +1,59 @@
-/* Variables de Diseño - Paleta y Tokens de Interfaz */
+/* Variables de Diseño - Paleta Negro Profundo y Verde Neón / Esmeralda */
 :root {
   /* Tipografía */
   --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Modo Oscuro (Por Defecto) */
-  --bg-app: #090d16;
-  --bg-surface: rgba(18, 24, 38, 0.75);
-  --bg-surface-solid: #121826;
-  --bg-card: rgba(26, 34, 52, 0.65);
-  --bg-card-hover: rgba(36, 48, 74, 0.85);
-  --bg-input: rgba(15, 21, 34, 0.8);
+  /* Modo Oscuro - Negro y Verde (Predeterminado) */
+  --bg-app: #050907;
+  --bg-surface: rgba(10, 18, 13, 0.85);
+  --bg-surface-solid: #0d1712;
+  --bg-card: rgba(16, 28, 20, 0.65);
+  --bg-card-hover: rgba(23, 40, 29, 0.85);
+  --bg-input: rgba(8, 14, 10, 0.9);
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.6);
-  --border-card: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(0, 255, 136, 0.12);
+  --border-focus: rgba(0, 255, 136, 0.6);
+  --border-card: rgba(0, 255, 136, 0.1);
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #f0fdf4;
+  --text-secondary: #a7f3d0;
+  --text-muted: #6ee7b7;
+  --text-dim: #4b6a57;
 
-  /* Colores de Acento y Marca */
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --primary-glow: rgba(99, 102, 241, 0.25);
-  --secondary: #8b5cf6;
+  /* Colores de Acento y Marca Verde Neón / Esmeralda */
+  --primary: #00ff88;
+  --primary-hover: #00e676;
+  --primary-dark: #059669;
+  --primary-glow: rgba(0, 255, 136, 0.3);
+  --primary-text: #05140b;
+  --secondary: #10b981;
 
   /* Estados de Tareas */
-  --status-todo: #38bdf8;
-  --status-todo-bg: rgba(56, 189, 248, 0.12);
-  --status-progress: #fbbf24;
-  --status-progress-bg: rgba(251, 191, 36, 0.12);
-  --status-done: #34d399;
-  --status-done-bg: rgba(52, 211, 153, 0.12);
+  --status-todo: #00e5ff;
+  --status-todo-bg: rgba(0, 229, 255, 0.12);
+  --status-progress: #facc15;
+  --status-progress-bg: rgba(250, 204, 21, 0.14);
+  --status-done: #00ff88;
+  --status-done-bg: rgba(0, 255, 136, 0.14);
 
   /* Prioridades */
   --priority-low: #38bdf8;
-  --priority-low-bg: rgba(56, 189, 248, 0.15);
-  --priority-medium: #fbbf24;
-  --priority-medium-bg: rgba(251, 191, 36, 0.15);
-  --priority-high: #f97316;
-  --priority-high-bg: rgba(249, 115, 22, 0.15);
-  --priority-urgent: #ef4444;
-  --priority-urgent-bg: rgba(239, 68, 68, 0.18);
+  --priority-low-bg: rgba(56, 189, 248, 0.14);
+  --priority-medium: #facc15;
+  --priority-medium-bg: rgba(250, 204, 21, 0.14);
+  --priority-high: #fb923c;
+  --priority-high-bg: rgba(251, 146, 60, 0.16);
+  --priority-urgent: #f43f5e;
+  --priority-urgent-bg: rgba(244, 63, 94, 0.18);
 
-  /* Sombras y Efectos */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.45);
+  /* Sombras y Efectos Glow Verde */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.7);
   --shadow-glow: 0 0 25px var(--primary-glow);
-  --blur-glass: blur(14px);
+  --shadow-card-glow: 0 0 16px rgba(0, 255, 136, 0.08);
+  --blur-glass: blur(16px);
 
   /* Radios */
   --radius-sm: 8px;
@@ -62,25 +66,33 @@
   --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Modo Claro */
+/* Modo Claro (Verde Esmeralda Fresco) */
 [data-theme="light"] {
-  --bg-app: #f1f5f9;
-  --bg-surface: rgba(255, 255, 255, 0.85);
+  --bg-app: #f0fdf4;
+  --bg-surface: rgba(255, 255, 255, 0.9);
   --bg-surface-solid: #ffffff;
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card: rgba(255, 255, 255, 0.95);
   --bg-card-hover: #ffffff;
   --bg-input: #ffffff;
 
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.5);
-  --border-card: rgba(0, 0, 0, 0.06);
+  --border-subtle: rgba(5, 150, 105, 0.15);
+  --border-focus: rgba(5, 150, 105, 0.5);
+  --border-card: rgba(5, 150, 105, 0.1);
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-primary: #064e3b;
+  --text-secondary: #047857;
+  --text-muted: #059669;
+  --text-dim: #6ee7b7;
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 4px 20px rgba(99, 102, 241, 0.15);
+  --primary: #059669;
+  --primary-hover: #047857;
+  --primary-dark: #064e3b;
+  --primary-glow: rgba(5, 150, 105, 0.2);
+  --primary-text: #ffffff;
+
+  --shadow-sm: 0 2px 8px rgba(5, 150, 105, 0.06);
+  --shadow-md: 0 8px 24px rgba(5, 150, 105, 0.1);
+  --shadow-lg: 0 16px 36px rgba(5, 150, 105, 0.14);
+  --shadow-glow: 0 4px 20px rgba(5, 150, 105, 0.18);
+  --shadow-card-glow: 0 2px 10px rgba(5, 150, 105, 0.04);
 }

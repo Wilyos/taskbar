@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Taskbar - To-Do List & Tablero Kanban Moderno</title>
-  <meta name="description" content="Gestor moderno de tareas y productividad con vista Kanban y Lista clásica, listo para Railway">
+  <title>Taskbar - To-Do List & Tablero Kanban (Negro & Verde)</title>
+  <meta name="description" content="Gestor moderno de tareas y productividad con vista Kanban y Lista clásica, autenticación de usuarios y listo para Railway">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/kanban.css">
 </head>
@@ -16,8 +16,8 @@
       <div class="brand-section">
         <div class="brand-logo">⚡</div>
         <div class="brand-info">
-          <h1>Taskbar <span class="brand-badge">Railway Ready</span></h1>
-          <p>Organiza tus proyectos y tareas con máxima productividad</p>
+          <h1>Taskbar <span class="brand-badge">Railway</span></h1>
+          <p>Control de tareas, proyectos y productividad</p>
         </div>
       </div>
 
@@ -32,12 +32,13 @@
         </div>
         <div class="stat-item">
           <span class="stat-label">Progreso</span>
-          <span class="stat-value" id="statPercentage" style="color: var(--status-done);">0%</span>
+          <span class="stat-value" id="statPercentage" style="color: var(--primary);">0%</span>
         </div>
       </div>
 
       <!-- Controles y Acciones -->
       <div class="header-actions">
+        <!-- Switcher de Vista -->
         <div class="view-switcher" role="tablist" aria-label="Cambio de vista">
           <button id="btnViewKanban" class="view-btn active" title="Vista Tablero Kanban">
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,6 +55,11 @@
         </div>
 
         <button id="btnThemeToggle" class="btn-icon" title="Cambiar tema">☀️</button>
+
+        <!-- Sección de Usuario / Autenticación -->
+        <div id="userAuthSection" class="user-auth-section">
+          <!-- Se inyecta dinámicamente: botón de login o badge de usuario -->
+        </div>
 
         <button id="btnNewTask" class="btn btn-primary">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,7 +159,7 @@
 
           <div class="form-group">
             <label class="form-label" for="taskDesc">Descripción (opcional)</label>
-            <textarea id="taskDesc" class="form-textarea" placeholder="Detalles, enlaces, notas importantes..."></textarea>
+            <textarea id="taskDesc" class="form-textarea" placeholder="Detalles, notas importantes..."></textarea>
           </div>
 
           <div class="form-row-2">
@@ -180,7 +186,7 @@
           <div class="form-row-2">
             <div class="form-group">
               <label class="form-label" for="taskCategory">Categoría</label>
-              <input type="text" id="taskCategory" class="form-input" placeholder="Ej: Trabajo, Personal, Dev" value="General" />
+              <input type="text" id="taskCategory" class="form-input" placeholder="Ej: General, Backend, Frontend" value="General" />
             </div>
 
             <div class="form-group">
@@ -193,6 +199,70 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancelar</button>
           <button type="submit" class="btn btn-primary" id="btnSubmitModal">Guardar Tarea</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Inicio de Sesión / Registro -->
+  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="authModalTitle">Acceso de Usuario</h2>
+        <button type="button" class="btn-icon" id="btnCloseAuthModal" title="Cerrar modal">✕</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button type="button" class="modal-tab-btn active" id="tabBtnLogin">Iniciar Sesión</button>
+        <button type="button" class="modal-tab-btn" id="tabBtnRegister">Crear Cuenta</button>
+      </div>
+
+      <!-- Formulario Login -->
+      <form id="loginForm">
+        <div class="modal-body">
+          <div style="background: rgba(0, 255, 136, 0.08); border: 1px solid var(--border-subtle); padding: 0.75rem; border-radius: var(--radius-md); font-size: 0.8rem; color: var(--text-secondary);">
+            💡 <strong>Acceso inicial:</strong> Usuario <code>admin</code> y Contraseña <code>admin123</code>, o crea una cuenta nueva.
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="loginUsername">Usuario</label>
+            <input type="text" id="loginUsername" class="form-input" placeholder="admin" required autocomplete="username" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Contraseña</label>
+            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelAuthModal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Entrar</button>
+        </div>
+      </form>
+
+      <!-- Formulario Registro -->
+      <form id="registerForm" style="display: none;">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="regName">Nombre Completo</label>
+            <input type="text" id="regName" class="form-input" placeholder="Tu Nombre" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="regUsername">Nombre de Usuario</label>
+            <input type="text" id="regUsername" class="form-input" placeholder="min. 3 caracteres" required autocomplete="username" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="regPassword">Contraseña</label>
+            <input type="password" id="regPassword" class="form-input" placeholder="min. 6 caracteres" required autocomplete="new-password" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelRegModal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear Cuenta</button>
         </div>
       </form>
     </div>

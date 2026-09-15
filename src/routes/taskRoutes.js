@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const taskModel = require('../models/taskModel');
+const { requireAuth } = require('../middleware/authMiddleware');
 
-// GET /api/tasks/stats
+// GET /api/tasks/stats (Público para vista general)
 router.get('/stats', async (req, res) => {
   try {
     const stats = await taskModel.getStats();
@@ -13,7 +14,7 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// GET /api/tasks/categories
+// GET /api/tasks/categories (Público)
 router.get('/categories', async (req, res) => {
   try {
     const categories = await taskModel.getCategories();
@@ -24,7 +25,7 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-// GET /api/tasks
+// GET /api/tasks (Público para visualización)
 router.get('/', async (req, res) => {
   try {
     const { search, status, priority, category } = req.query;
@@ -36,7 +37,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/tasks/:id
+// GET /api/tasks/:id (Público)
 router.get('/:id', async (req, res) => {
   try {
     const task = await taskModel.getById(req.params.id);
@@ -50,8 +51,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/tasks
-router.post('/', async (req, res) => {
+// POST /api/tasks (PROTEGIDO: Solo usuarios logueados pueden crear tareas)
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { title, description, status, priority, category, due_date } = req.body;
     if (!title || !title.trim()) {
@@ -74,8 +75,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/tasks/:id
-router.put('/:id', async (req, res) => {
+// PUT /api/tasks/:id (PROTEGIDO: Solo usuarios logueados pueden modificar)
+router.put('/:id', requireAuth, async (req, res) => {
   try {
     const task = await taskModel.getById(req.params.id);
     if (!task) {
@@ -90,8 +91,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// PATCH /api/tasks/:id/status
-router.patch('/:id/status', async (req, res) => {
+// PATCH /api/tasks/:id/status (PROTEGIDO: Solo usuarios logueados pueden cambiar estado/mover)
+router.patch('/:id/status', requireAuth, async (req, res) => {
   try {
     const { status, position = 0 } = req.body;
     if (!status) {
@@ -111,8 +112,8 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// DELETE /api/tasks/:id
-router.delete('/:id', async (req, res) => {
+// DELETE /api/tasks/:id (PROTEGIDO: Solo usuarios logueados pueden eliminar)
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const success = await taskModel.delete(req.params.id);
     if (!success) {
