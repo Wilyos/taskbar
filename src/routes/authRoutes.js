@@ -46,7 +46,7 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '30d' });
 
     res.status(201).json({
-      message: 'Cuenta registrada. Está pendiente de activación por el administrador (wilyos).',
+      message: 'Cuenta registrada. Está pendiente de activación por el administrador.',
       token,
       user: userPayload
     });

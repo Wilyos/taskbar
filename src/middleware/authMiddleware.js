@@ -45,7 +45,7 @@ function requireActiveUser(req, res, next) {
   // Verificar si la cuenta ha sido activada
   if (!req.user.is_active) {
     return res.status(403).json({ 
-      error: 'Tu cuenta aún no ha sido activada por el administrador (wilyos). Solo puedes visualizar el tablero hasta que sea aprobada.' 
+      error: 'Tu cuenta aún no ha sido activada por el administrador. Solo puedes visualizar el tablero hasta que sea aprobada.' 
     });
   }
 
@@ -55,7 +55,7 @@ function requireActiveUser(req, res, next) {
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ 
-      error: 'Acceso denegado. Se requieren permisos de administrador (wilyos).' 
+      error: 'Acceso denegado. Se requieren permisos de administrador.' 
     });
   }
   next();

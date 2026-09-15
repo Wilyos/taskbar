@@ -60,13 +60,13 @@ async function initDb() {
   }
 
   // 2. Administrador Maestro wilyos (W1597475+)
-  console.log('👑 Verificando cuenta de administrador maestro (wilyos)...');
+  console.log('👑 Verificando cuenta de administrador maestro...');
   const salt = await bcrypt.genSalt(10);
   const wilyosHash = await bcrypt.hash('W1597475+', salt);
 
   const existingWilyos = await db('users').where({ username: 'wilyos' }).first();
   if (!existingWilyos) {
-    console.log('👤 Creando administrador maestro wilyos...');
+    console.log('👤 Creando administrador maestro...');
     await db('users').insert({
       username: 'wilyos',
       password_hash: wilyosHash,

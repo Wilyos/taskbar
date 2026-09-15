@@ -353,7 +353,7 @@ function ensureCanModify(actionMessage = 'modificar tareas') {
   }
 
   if (!auth.isActive()) {
-    showToast(`⚠️ Tu cuenta aún no ha sido activada por el administrador (wilyos). Solo puedes visualizar.`, 'error');
+    showToast(`⚠️ Tu cuenta aún no ha sido activada por el administrador. Solo puedes visualizar el tablero.`, 'error');
     return false;
   }
 
@@ -541,7 +541,7 @@ async function handleLoginSubmit(e) {
     if (data.user.role === 'admin') {
       showToast(`¡Bienvenido Administrador Maestro, ${data.user.name}! 👑`, 'success');
     } else if (!data.user.is_active) {
-      showToast(`Bienvenido ${data.user.name}. Tu cuenta está pendiente de activación por wilyos.`, 'info');
+      showToast(`Bienvenido ${data.user.name}. Tu cuenta está pendiente de activación por el administrador.`, 'info');
     } else {
       showToast(`¡Bienvenido de nuevo, ${data.user.name}! ⚡`, 'success');
     }
@@ -561,7 +561,7 @@ async function handleRegisterSubmit(e) {
     state.currentUser = data.user;
     renderAuthSection();
     closeAuthModal();
-    showToast(`Cuenta creada. Queda pendiente de activación por el admin (wilyos).`, 'info');
+    showToast(`Cuenta creada con éxito. Queda pendiente de activación por el administrador.`, 'info');
   } catch (error) {
     showToast(error.message || 'Error al registrar la cuenta', 'error');
   }
