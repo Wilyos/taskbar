@@ -75,6 +75,31 @@
       </div>
     </header>
 
+    <!-- Navegación y Conmutador de Áreas (Desarrollo Web & Diseño) -->
+    <nav class="area-nav" id="areaNavContainer" aria-label="Navegación de Áreas">
+      <div class="area-switcher-wrap" id="areaSwitcherWrap">
+        <span class="area-label-tag">Área Activa:</span>
+        <div class="area-switcher" role="tablist">
+          <button type="button" class="area-tab active" id="tabAreaDev" data-area="desarrollo" role="tab" aria-selected="true">
+            <span class="area-tab-icon">💻</span>
+            <span class="area-tab-title">Desarrollo Web</span>
+            <span class="area-pill" id="badgeCountDev">0</span>
+          </button>
+          <button type="button" class="area-tab" id="tabAreaDesign" data-area="diseno" role="tab" aria-selected="false">
+            <span class="area-tab-icon">🎨</span>
+            <span class="area-tab-title">Diseño</span>
+            <span class="area-pill" id="badgeCountDesign">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Indicador fijo para usuario normal (solo ve su área asignada) -->
+      <div class="user-area-badge" id="userAreaBadge" style="display: none;">
+        <span class="user-area-icon" id="userAreaBadgeIcon">💻</span>
+        <span class="user-area-text">Área Asignada: <strong id="userAreaBadgeText">Desarrollo Web</strong></span>
+      </div>
+    </nav>
+
     <!-- Barra de Búsqueda y Filtros -->
     <div class="toolbar-container">
       <div class="search-box">
@@ -194,10 +219,18 @@
               <input type="text" id="taskCategory" class="form-input" placeholder="Ej: General, Backend, Frontend" value="General" />
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="taskDueDate">Fecha de Vencimiento</label>
-              <input type="date" id="taskDueDate" class="form-input" />
+            <div class="form-group" id="groupTaskArea">
+              <label class="form-label" for="taskArea">Área de la Tarea</label>
+              <select id="taskArea" class="form-select">
+                <option value="desarrollo">💻 Desarrollo Web</option>
+                <option value="diseno">🎨 Diseño</option>
+              </select>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskDueDate">Fecha de Vencimiento</label>
+            <input type="date" id="taskDueDate" class="form-input" />
           </div>
         </div>
 
@@ -257,6 +290,14 @@
           <div class="form-group">
             <label class="form-label" for="regUsername">Nombre de Usuario</label>
             <input type="text" id="regUsername" class="form-input" placeholder="min. 3 caracteres" required autocomplete="username" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="regArea">Área de Trabajo</label>
+            <select id="regArea" class="form-select" required>
+              <option value="desarrollo">💻 Desarrollo Web</option>
+              <option value="diseno">🎨 Diseño</option>
+            </select>
           </div>
 
           <div class="form-group">

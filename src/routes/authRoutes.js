@@ -7,7 +7,7 @@ const { requireAuth, JWT_SECRET } = require('../middleware/authMiddleware');
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, name } = req.body;
+    const { username, password, name, area } = req.body;
 
     if (!username || !password || !name) {
       return res.status(400).json({ error: 'Usuario, contraseña y nombre son obligatorios.' });
@@ -26,12 +26,15 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Este nombre de usuario ya está registrado.' });
     }
 
+    const safeArea = ['desarrollo', 'diseno'].includes(area) ? area : 'desarrollo';
+
     // Nuevos usuarios se crean con is_active: false (pendiente de aprobación de wilyos)
     const newUser = await userModel.create({
       username,
       password,
       name,
       role: 'user',
+      area: safeArea,
       is_active: false
     });
 
@@ -40,6 +43,7 @@ router.post('/register', async (req, res) => {
       username: newUser.username,
       name: newUser.name,
       role: newUser.role,
+      area: newUser.area,
       is_active: newUser.is_active
     };
 
@@ -80,6 +84,7 @@ router.post('/login', async (req, res) => {
       username: user.username,
       name: user.name,
       role: user.role,
+      area: user.area || (user.role === 'admin' ? 'todas' : 'desarrollo'),
       is_active: !!user.is_active
     };
 

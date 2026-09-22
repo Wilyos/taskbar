@@ -15,19 +15,22 @@ const userModel = {
 
   async getAll() {
     return await db('users')
-      .select('id', 'username', 'name', 'role', 'is_active', 'created_at')
+      .select('id', 'username', 'name', 'role', 'area', 'is_active', 'created_at')
       .orderBy('id', 'asc');
   },
 
-  async create({ username, password, name, role = 'user', is_active = false }) {
+  async create({ username, password, name, role = 'user', area = 'desarrollo', is_active = false }) {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
+
+    const safeArea = ['desarrollo', 'diseno'].includes(area) ? area : 'desarrollo';
 
     const [id] = await db('users').insert({
       username: username.toLowerCase().trim(),
       password_hash,
       name: name.trim(),
       role,
+      area: safeArea,
       is_active: !!is_active,
       created_at: new Date()
     });
@@ -49,6 +52,18 @@ const userModel = {
       is_active: !!isActive
     });
 
+    return await this.findById(id);
+  },
+
+  async setArea(id, area) {
+    const user = await db('users').where({ id }).first();
+    if (!user) return null;
+
+    if (!['desarrollo', 'diseno', 'todas'].includes(area)) {
+      throw new Error('Área inválida. Debe ser "desarrollo" o "diseno".');
+    }
+
+    await db('users').where({ id }).update({ area });
     return await this.findById(id);
   },
 

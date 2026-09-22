@@ -40,4 +40,27 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+// PATCH /api/users/:id/area - Cambiar área de un usuario (desarrollo o diseno)
+router.patch('/:id/area', async (req, res) => {
+  try {
+    const { area } = req.body;
+    if (!area) {
+      return res.status(400).json({ error: 'El campo area es obligatorio.' });
+    }
+
+    const updatedUser = await userModel.setArea(req.params.id, area);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    res.json({
+      message: `Área de ${updatedUser.username} actualizada a ${updatedUser.area}.`,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error al cambiar área del usuario:', error);
+    res.status(400).json({ error: error.message || 'Error al cambiar área del usuario.' });
+  }
+});
+
 module.exports = router;

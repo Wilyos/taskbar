@@ -1,8 +1,12 @@
 const { db } = require('../db');
 
 const taskModel = {
-  async getAll({ search, status, priority, category } = {}) {
+  async getAll({ area, search, status, priority, category } = {}) {
     let query = db('tasks').select('*');
+
+    if (area && area !== 'all') {
+      query = query.where('area', area);
+    }
 
     if (status && status !== 'all') {
       query = query.where('status', status);
@@ -31,10 +35,13 @@ const taskModel = {
   },
 
   async create(data) {
-    const { title, description, status = 'todo', priority = 'medium', category = 'General', due_date } = data;
+    const { title, description, status = 'todo', priority = 'medium', category = 'General', area = 'desarrollo', due_date } = data;
     
-    // Obtener la posición más alta para la columna
-    const lastTask = await db('tasks').where({ status }).orderBy('position', 'desc').first();
+    // Obtener la posición más alta para la columna dentro del área
+    const lastTask = await db('tasks')
+      .where({ status, area })
+      .orderBy('position', 'desc')
+      .first();
     const position = lastTask ? lastTask.position + 1 : 0;
 
     const [id] = await db('tasks').insert({
@@ -43,6 +50,7 @@ const taskModel = {
       status,
       priority,
       category: category.trim() || 'General',
+      area: area.trim() || 'desarrollo',
       due_date: due_date || null,
       position,
       created_at: new Date(),
@@ -55,7 +63,7 @@ const taskModel = {
   },
 
   async update(id, data) {
-    const { title, description, status, priority, category, due_date, position } = data;
+    const { title, description, status, priority, category, area, due_date, position } = data;
     const updates = {
       updated_at: new Date()
     };
@@ -65,6 +73,7 @@ const taskModel = {
     if (status !== undefined) updates.status = status;
     if (priority !== undefined) updates.priority = priority;
     if (category !== undefined) updates.category = category.trim() || 'General';
+    if (area !== undefined) updates.area = area;
     if (due_date !== undefined) updates.due_date = due_date || null;
     if (position !== undefined) updates.position = position;
 
@@ -86,8 +95,12 @@ const taskModel = {
     return deletedCount > 0;
   },
 
-  async getStats() {
-    const allTasks = await db('tasks').select('status', 'priority');
+  async getStats(area) {
+    let query = db('tasks').select('status', 'priority');
+    if (area && area !== 'all') {
+      query = query.where('area', area);
+    }
+    const allTasks = await query;
     const total = allTasks.length;
     const todo = allTasks.filter(t => t.status === 'todo').length;
     const in_progress = allTasks.filter(t => t.status === 'in_progress').length;
@@ -105,8 +118,12 @@ const taskModel = {
     };
   },
 
-  async getCategories() {
-    const categories = await db('tasks').distinct('category').pluck('category');
+  async getCategories(area) {
+    let query = db('tasks');
+    if (area && area !== 'all') {
+      query = query.where('area', area);
+    }
+    const categories = await query.distinct('category').pluck('category');
     return categories.filter(Boolean);
   }
 };

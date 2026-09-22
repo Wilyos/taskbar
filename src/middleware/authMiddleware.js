@@ -61,4 +61,25 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireActiveUser, requireAdmin, JWT_SECRET };
+function attachUserIfExists(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) {
+    req.user = null;
+    return next();
+  }
+
+  const parts = authHeader.split(' ');
+  if (parts.length === 2 && parts[0] === 'Bearer') {
+    try {
+      const decoded = jwt.verify(parts[1], JWT_SECRET);
+      req.user = decoded;
+    } catch (err) {
+      req.user = null;
+    }
+  } else {
+    req.user = null;
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireActiveUser, requireAdmin, attachUserIfExists, JWT_SECRET };

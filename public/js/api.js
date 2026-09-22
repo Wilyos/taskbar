@@ -106,28 +106,52 @@ export const api = {
     return data;
   },
 
+  async setUserArea(id, area) {
+    const res = await fetch(`${API_BASE}/users/${id}/area`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ area })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al cambiar área del usuario');
+    return data;
+  },
+
   // Tareas
   async getTasks(filters = {}) {
     const params = new URLSearchParams();
+    if (filters.area && filters.area !== 'all') params.append('area', filters.area);
     if (filters.search) params.append('search', filters.search);
     if (filters.status && filters.status !== 'all') params.append('status', filters.status);
     if (filters.priority && filters.priority !== 'all') params.append('priority', filters.priority);
     if (filters.category && filters.category !== 'all') params.append('category', filters.category);
 
     const query = params.toString() ? `?${params.toString()}` : '';
-    const res = await fetch(`${API_BASE}/tasks${query}`);
+    const res = await fetch(`${API_BASE}/tasks${query}`, {
+      headers: getHeaders()
+    });
     if (!res.ok) throw new Error('Error al cargar las tareas');
     return await res.json();
   },
 
-  async getStats() {
-    const res = await fetch(`${API_BASE}/tasks/stats`);
+  async getStats(area) {
+    const params = new URLSearchParams();
+    if (area && area !== 'all') params.append('area', area);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API_BASE}/tasks/stats${query}`, {
+      headers: getHeaders()
+    });
     if (!res.ok) throw new Error('Error al cargar estadísticas');
     return await res.json();
   },
 
-  async getCategories() {
-    const res = await fetch(`${API_BASE}/tasks/categories`);
+  async getCategories(area) {
+    const params = new URLSearchParams();
+    if (area && area !== 'all') params.append('area', area);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API_BASE}/tasks/categories${query}`, {
+      headers: getHeaders()
+    });
     if (!res.ok) throw new Error('Error al cargar categorías');
     return await res.json();
   },

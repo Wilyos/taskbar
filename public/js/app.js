@@ -6,6 +6,7 @@ const state = {
   tasks: [],
   stats: null,
   currentUser: auth.getUser(),
+  currentArea: localStorage.getItem('taskbar_area') || 'desarrollo',
   activeView: localStorage.getItem('taskbar_view') || 'kanban',
   theme: localStorage.getItem('taskbar_theme') || 'dark',
   filters: {
@@ -19,6 +20,17 @@ const state = {
 
 // Elementos DOM
 const elements = {
+  // Navigation & Switcher de Áreas
+  areaNavContainer: document.getElementById('areaNavContainer'),
+  areaSwitcherWrap: document.getElementById('areaSwitcherWrap'),
+  tabAreaDev: document.getElementById('tabAreaDev'),
+  tabAreaDesign: document.getElementById('tabAreaDesign'),
+  badgeCountDev: document.getElementById('badgeCountDev'),
+  badgeCountDesign: document.getElementById('badgeCountDesign'),
+  userAreaBadge: document.getElementById('userAreaBadge'),
+  userAreaBadgeIcon: document.getElementById('userAreaBadgeIcon'),
+  userAreaBadgeText: document.getElementById('userAreaBadgeText'),
+
   // Views
   kanbanView: document.getElementById('kanbanView'),
   listView: document.getElementById('listView'),
@@ -64,6 +76,8 @@ const elements = {
   selectStatus: document.getElementById('taskStatus'),
   selectPriority: document.getElementById('taskPriority'),
   inputCategory: document.getElementById('taskCategory'),
+  taskArea: document.getElementById('taskArea'),
+  groupTaskArea: document.getElementById('groupTaskArea'),
   inputDueDate: document.getElementById('taskDueDate'),
 
   // Modal Autenticación
@@ -79,6 +93,7 @@ const elements = {
   loginPassword: document.getElementById('loginPassword'),
   regName: document.getElementById('regName'),
   regUsername: document.getElementById('regUsername'),
+  regArea: document.getElementById('regArea'),
   regPassword: document.getElementById('regPassword'),
 
   // Modal Usuarios (Admin)
@@ -120,17 +135,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
 });
 
-// Renderizar Sección de Usuario en el Header
+// Renderizar Sección de Usuario en el Header y Visibilidad de Áreas
 function renderAuthSection() {
-  if (auth.isAuthenticated() && state.currentUser) {
-    const isAdmin = state.currentUser.role === 'admin';
-    const isActive = isAdmin || state.currentUser.is_active;
+  const isAuth = auth.isAuthenticated() && state.currentUser;
+  const isAdmin = isAuth && state.currentUser.role === 'admin';
+  const isRegularUser = isAuth && state.currentUser.role === 'user';
+  const isActive = isAuth && (isAdmin || state.currentUser.is_active);
 
-    // Mostrar u ocultar botón de gestión de usuarios para admin
-    if (elements.btnAdminUsers) {
-      elements.btnAdminUsers.style.display = isAdmin ? 'inline-flex' : 'none';
+  // Control de Área: usuario regular vs admin / visitante
+  if (isRegularUser) {
+    state.currentArea = state.currentUser.area || 'desarrollo';
+    if (elements.areaSwitcherWrap) elements.areaSwitcherWrap.style.display = 'none';
+    if (elements.userAreaBadge) {
+      elements.userAreaBadge.style.display = 'inline-flex';
+      const isDesign = state.currentArea === 'diseno';
+      elements.userAreaBadge.className = isDesign ? 'user-area-badge is-design' : 'user-area-badge';
+      if (elements.userAreaBadgeIcon) elements.userAreaBadgeIcon.textContent = isDesign ? '🎨' : '💻';
+      if (elements.userAreaBadgeText) {
+        elements.userAreaBadgeText.textContent = isDesign ? 'Diseño Gráfico & UI' : 'Desarrollo Web';
+      }
     }
+  } else {
+    // Admin o Visitante público
+    if (elements.areaSwitcherWrap) elements.areaSwitcherWrap.style.display = 'flex';
+    if (elements.userAreaBadge) elements.userAreaBadge.style.display = 'none';
+  }
 
+  updateAreaUI();
+
+  // Mostrar u ocultar botón de gestión de usuarios para admin
+  if (elements.btnAdminUsers) {
+    elements.btnAdminUsers.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+
+  if (isAuth) {
     elements.userAuthSection.innerHTML = `
       <div class="user-profile-badge" title="${isActive ? 'Cuenta Activa con permisos' : 'Cuenta Pendiente de Activación'}">
         <span class="user-avatar-dot" style="${!isActive ? 'background: var(--status-progress); box-shadow: 0 0 6px var(--status-progress);' : ''}"></span>
@@ -145,9 +183,6 @@ function renderAuthSection() {
       btnLogout.addEventListener('click', handleLogout);
     }
   } else {
-    if (elements.btnAdminUsers) {
-      elements.btnAdminUsers.style.display = 'none';
-    }
     elements.userAuthSection.innerHTML = `
       <button class="btn btn-secondary" id="btnLoginHeader" style="padding: 0.45rem 0.85rem; font-size: 0.82rem;">
         🔐 Iniciar Sesión
@@ -160,13 +195,43 @@ function renderAuthSection() {
   }
 }
 
+// Actualizar visualmente la pestaña de área activa
+function updateAreaUI() {
+  if (elements.tabAreaDev && elements.tabAreaDesign) {
+    const isDev = state.currentArea === 'desarrollo';
+    elements.tabAreaDev.classList.toggle('active', isDev);
+    elements.tabAreaDev.setAttribute('aria-selected', isDev ? 'true' : 'false');
+    elements.tabAreaDesign.classList.toggle('active', !isDev);
+    elements.tabAreaDesign.setAttribute('aria-selected', !isDev ? 'true' : 'false');
+  }
+}
+
+// Conmutar área (Solo Admin o Visitante)
+async function switchArea(area) {
+  if (state.currentUser && state.currentUser.role === 'user') {
+    state.currentArea = state.currentUser.area || 'desarrollo';
+    updateAreaUI();
+    return;
+  }
+
+  state.currentArea = area;
+  localStorage.setItem('taskbar_area', area);
+  updateAreaUI();
+  await loadData();
+}
+
 // Carga de Datos
 async function loadData() {
   try {
+    if (state.currentUser && state.currentUser.role === 'user') {
+      state.currentArea = state.currentUser.area || 'desarrollo';
+    }
+
+    const filters = { ...state.filters, area: state.currentArea };
     const [tasks, stats, categories] = await Promise.all([
-      api.getTasks(state.filters),
-      api.getStats(),
-      api.getCategories()
+      api.getTasks(filters),
+      api.getStats(state.currentArea),
+      api.getCategories(state.currentArea)
     ]);
 
     state.tasks = tasks;
@@ -175,8 +240,27 @@ async function loadData() {
     renderStats();
     renderCategories(categories);
     renderCurrentView();
+
+    // Actualizar conteos en pestañas de área
+    updateAreaCounters();
   } catch (error) {
     showToast(error.message || 'Error al cargar datos', 'error');
+  }
+}
+
+async function updateAreaCounters() {
+  try {
+    const isAdminOrGuest = !state.currentUser || state.currentUser.role === 'admin';
+    if (isAdminOrGuest && elements.badgeCountDev && elements.badgeCountDesign) {
+      const [devStats, designStats] = await Promise.all([
+        api.getStats('desarrollo'),
+        api.getStats('diseno')
+      ]);
+      elements.badgeCountDev.textContent = devStats.total || 0;
+      elements.badgeCountDesign.textContent = designStats.total || 0;
+    }
+  } catch (e) {
+    // No interrumpir si falla el contador secundario
   }
 }
 
@@ -206,13 +290,18 @@ function renderKanban() {
 
 function renderCardsList(tasks) {
   if (tasks.length === 0) {
-    return `<div class="empty-state" style="padding: 1.5rem 0.5rem; font-size: 0.8rem;">Sin tareas aquí</div>`;
+    return `<div class="empty-state" style="padding: 1.5rem 0.5rem; font-size: 0.8rem;">Sin tareas en este estado</div>`;
   }
 
-  return tasks.map(task => `
+  return tasks.map(task => {
+    const isDesign = task.area === 'diseno';
+    return `
     <div class="kanban-card" draggable="true" data-id="${task.id}" data-status="${task.status}">
       <div class="card-top-row">
         <div class="card-tags">
+          <span class="badge ${isDesign ? 'badge-area-design' : 'badge-area-dev'}">
+            ${isDesign ? '🎨 Diseño' : '💻 Dev'}
+          </span>
           <span class="badge badge-priority-${task.priority}">
             ${formatPriority(task.priority)}
           </span>
@@ -231,7 +320,8 @@ function renderCardsList(tasks) {
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 // Renderizar Vista Lista Clásica
@@ -250,6 +340,7 @@ function renderList() {
 
   elements.taskListItems.innerHTML = state.tasks.map(task => {
     const isCompleted = task.status === 'completed';
+    const isDesign = task.area === 'diseno';
     return `
       <div class="list-item-card ${isCompleted ? 'completed-task' : ''}">
         <div class="task-main-col">
@@ -267,6 +358,9 @@ function renderList() {
         </div>
 
         <div class="task-meta-col">
+          <span class="badge ${isDesign ? 'badge-area-design' : 'badge-area-dev'}">
+            ${isDesign ? '🎨 Diseño' : '💻 Dev'}
+          </span>
           <span class="badge badge-priority-${task.priority}">
             ${formatPriority(task.priority)}
           </span>
@@ -421,12 +515,22 @@ async function toggleTaskStatus(id, checkboxElem) {
 function openCreateModal(defaultStatus = 'todo') {
   if (!ensureCanModify('crear nuevas tareas')) return;
 
+  const isAdmin = auth.isAdmin();
+  const isRegularUser = state.currentUser && state.currentUser.role === 'user';
+
   state.editingTaskId = null;
   elements.modalTitle.textContent = 'Nueva Tarea';
   elements.taskForm.reset();
   elements.selectStatus.value = defaultStatus;
   elements.selectPriority.value = 'medium';
   elements.inputCategory.value = 'General';
+
+  if (elements.taskArea) {
+    elements.taskArea.value = state.currentArea;
+    // Si es usuario regular, no puede cambiar el área
+    elements.taskArea.disabled = isRegularUser;
+  }
+
   elements.taskModal.classList.add('is-open');
   elements.inputTitle.focus();
 }
@@ -437,6 +541,8 @@ function openEditModal(id) {
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
 
+  const isRegularUser = state.currentUser && state.currentUser.role === 'user';
+
   state.editingTaskId = id;
   elements.modalTitle.textContent = 'Editar Tarea';
   elements.inputTitle.value = task.title || '';
@@ -445,6 +551,11 @@ function openEditModal(id) {
   elements.selectPriority.value = task.priority || 'medium';
   elements.inputCategory.value = task.category || 'General';
   elements.inputDueDate.value = task.due_date || '';
+
+  if (elements.taskArea) {
+    elements.taskArea.value = task.area || state.currentArea;
+    elements.taskArea.disabled = isRegularUser;
+  }
 
   elements.taskModal.classList.add('is-open');
   elements.inputTitle.focus();
@@ -465,12 +576,17 @@ async function handleFormSubmit(e) {
     return;
   }
 
+  const selectedArea = elements.taskArea && !elements.taskArea.disabled 
+    ? elements.taskArea.value 
+    : state.currentArea;
+
   const payload = {
     title,
     description: elements.inputDesc.value.trim(),
     status: elements.selectStatus.value,
     priority: elements.selectPriority.value,
     category: elements.inputCategory.value.trim() || 'General',
+    area: selectedArea,
     due_date: elements.inputDueDate.value || null
   };
 
@@ -555,13 +671,16 @@ async function handleRegisterSubmit(e) {
   const name = elements.regName.value.trim();
   const username = elements.regUsername.value.trim();
   const password = elements.regPassword.value;
+  const area = elements.regArea ? elements.regArea.value : 'desarrollo';
 
   try {
-    const data = await api.register({ name, username, password });
+    const data = await api.register({ name, username, password, area });
     state.currentUser = data.user;
+    state.currentArea = data.user.area || 'desarrollo';
     renderAuthSection();
     closeAuthModal();
     showToast(`Cuenta creada con éxito. Queda pendiente de activación por el administrador.`, 'info');
+    await loadData();
   } catch (error) {
     showToast(error.message || 'Error al registrar la cuenta', 'error');
   }
@@ -571,6 +690,7 @@ function handleLogout() {
   auth.clearToken();
   state.currentUser = null;
   renderAuthSection();
+  loadData();
   showToast('Sesión cerrada correctamente', 'info');
 }
 
@@ -600,24 +720,36 @@ async function loadAndRenderUsers() {
       const isActive = u.role === 'admin' || u.is_active;
 
       return `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem; background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-md); gap: 0.75rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 0.85rem 1rem; background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-md); gap: 0.75rem;">
           <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
               <strong style="color: var(--text-primary); font-size: 0.9rem;">${escapeHtml(u.name)}</strong>
               <code style="color: var(--text-dim); font-size: 0.75rem;">@${escapeHtml(u.username)}</code>
               ${isMasterAdmin ? '<span class="badge" style="background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid rgba(0,255,136,0.4);">👑 Master Admin</span>' : ''}
             </div>
-            <span style="font-size: 0.72rem; color: var(--text-dim);">Registrado: ${new Date(u.created_at).toLocaleDateString()}</span>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.2rem; flex-wrap: wrap;">
+              <span style="font-size: 0.72rem; color: var(--text-dim);">Registrado: ${new Date(u.created_at).toLocaleDateString()}</span>
+              
+              <!-- Selector de Área por Usuario -->
+              <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Área:</span>
+                <select class="form-select" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; height: auto; border-radius: var(--radius-sm);" onchange="window.app.changeUserArea(${u.id}, this.value)" ${isMasterAdmin ? 'disabled' : ''}>
+                  <option value="desarrollo" ${u.area === 'desarrollo' ? 'selected' : ''}>💻 Desarrollo Web</option>
+                  <option value="diseno" ${u.area === 'diseno' ? 'selected' : ''}>🎨 Diseño</option>
+                  ${isMasterAdmin ? '<option value="todas" selected>👑 Acceso Total</option>' : ''}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             ${isActive ? `
               <span class="badge" style="background: var(--status-done-bg); color: var(--primary); border: 1px solid rgba(0,255,136,0.3);">
-                ✔ Activa (Puede editar)
+                ✔ Activa
               </span>
             ` : `
               <span class="badge" style="background: var(--status-progress-bg); color: var(--status-progress); border: 1px solid rgba(250,204,21,0.3);">
-                ⏳ Pendiente (Solo lectura)
+                ⏳ Pendiente
               </span>
             `}
 
@@ -648,6 +780,16 @@ async function toggleUserStatus(id, newStatus) {
     await loadAndRenderUsers();
   } catch (error) {
     showToast(error.message || 'Error al actualizar usuario', 'error');
+  }
+}
+
+async function changeUserArea(id, newArea) {
+  try {
+    await api.setUserArea(id, newArea);
+    showToast(`Área de trabajo del usuario actualizada exitosamente`, 'success');
+    await loadAndRenderUsers();
+  } catch (error) {
+    showToast(error.message || 'Error al actualizar área del usuario', 'error');
   }
 }
 
@@ -715,6 +857,14 @@ function escapeHtml(str) {
 
 // Event Listeners
 function setupEventListeners() {
+  // Conmutador de Áreas (Tabs)
+  if (elements.tabAreaDev) {
+    elements.tabAreaDev.addEventListener('click', () => switchArea('desarrollo'));
+  }
+  if (elements.tabAreaDesign) {
+    elements.tabAreaDesign.addEventListener('click', () => switchArea('diseno'));
+  }
+
   // Cambio de vistas
   elements.btnViewKanban.addEventListener('click', () => switchView('kanban'));
   elements.btnViewList.addEventListener('click', () => switchView('list'));
@@ -807,5 +957,6 @@ window.app = {
   openEditModal,
   deleteTask,
   toggleTaskStatus,
-  toggleUserStatus
+  toggleUserStatus,
+  changeUserArea
 };
