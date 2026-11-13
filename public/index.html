@@ -75,11 +75,32 @@
       </div>
     </header>
 
-    <!-- Navegación y Conmutador de Áreas (Desarrollo Web & Diseño) -->
-    <nav class="area-nav" id="areaNavContainer" aria-label="Navegación de Áreas">
+    <!-- Navegación y Conmutador de Tableros / Áreas -->
+    <nav class="area-nav" id="areaNavContainer" aria-label="Navegación de Tableros y Áreas">
+      <!-- Conmutador de Tablero Personal vs General -->
+      <div class="area-switcher-wrap" id="boardSwitcherWrap">
+        <span class="area-label-tag">Tablero:</span>
+        <div class="area-switcher" role="tablist">
+          <button type="button" class="area-tab" id="tabBoardMine" data-board="mine" role="tab" aria-selected="false" style="display: none;">
+            <span class="area-tab-icon">👤</span>
+            <span class="area-tab-title">Mi Tablero</span>
+            <span class="area-pill" id="badgeCountMine">0</span>
+          </button>
+          <button type="button" class="area-tab active" id="tabBoardGeneral" data-board="general" role="tab" aria-selected="true">
+            <span class="area-tab-icon">🌐</span>
+            <span class="area-tab-title">Tablero General</span>
+            <span class="area-pill" id="badgeCountGeneral">0</span>
+          </button>
+        </div>
+      </div>
+
       <div class="area-switcher-wrap" id="areaSwitcherWrap">
         <span class="area-label-tag">Área Activa:</span>
         <div class="area-switcher" role="tablist">
+          <button type="button" class="area-tab" id="tabAreaAll" data-area="all" role="tab" aria-selected="false">
+            <span class="area-tab-icon">🌐</span>
+            <span class="area-tab-title">Todas</span>
+          </button>
           <button type="button" class="area-tab active" id="tabAreaDev" data-area="desarrollo" role="tab" aria-selected="true">
             <span class="area-tab-icon">💻</span>
             <span class="area-tab-title">Desarrollo Web</span>
@@ -110,6 +131,10 @@
       </div>
 
       <div class="filters-group">
+        <select id="filterUser" class="select-filter" aria-label="Filtrar por usuario">
+          <option value="all">Todos los Usuarios</option>
+        </select>
+
         <select id="filterPriority" class="select-filter" aria-label="Filtrar por prioridad">
           <option value="all">Todas las Prioridades</option>
           <option value="urgent">🔴 Urgente</option>
@@ -228,9 +253,18 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="taskDueDate">Fecha de Vencimiento</label>
-            <input type="date" id="taskDueDate" class="form-input" />
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="taskDueDate">Fecha de Vencimiento</label>
+              <input type="date" id="taskDueDate" class="form-input" />
+            </div>
+
+            <div class="form-group" id="groupTaskOwner" style="display: none;">
+              <label class="form-label" for="taskOwner">Usuario Asignado</label>
+              <select id="taskOwner" class="form-select">
+                <!-- Se llena dinámicamente para Admin -->
+              </select>
+            </div>
           </div>
         </div>
 

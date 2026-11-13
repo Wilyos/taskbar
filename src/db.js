@@ -111,6 +111,7 @@ async function initDb() {
       table.string('priority', 50).notNullable().defaultTo('medium');
       table.string('category', 100).notNullable().defaultTo('General');
       table.string('area', 50).notNullable().defaultTo('desarrollo');
+      table.integer('user_id').nullable().references('id').inTable('users').onDelete('SET NULL');
       table.string('due_date', 50).nullable();
       table.integer('position').notNullable().defaultTo(0);
       table.timestamp('created_at').defaultTo(db.fn.now());
@@ -125,7 +126,20 @@ async function initDb() {
         table.string('area', 50).notNullable().defaultTo('desarrollo');
       });
     }
+
+    // Verificar si la tabla tasks tiene la columna user_id
+    const hasTaskUserId = await db.schema.hasColumn('tasks', 'user_id');
+    if (!hasTaskUserId) {
+      console.log('🛠 Agregando columna "user_id" a la tabla tasks...');
+      await db.schema.table('tasks', (table) => {
+        table.integer('user_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+      });
+    }
   }
+
+  // Obtener id del administrador maestro para asociar tareas de ejemplo iniciales
+  const wilyosUser = await db('users').where({ username: 'wilyos' }).first();
+  const defaultOwnerId = wilyosUser ? wilyosUser.id : null;
 
   // Verificar si hay tareas en el sistema; si no, insertar iniciales
   const totalTasks = await db('tasks').count('id as count').first();
@@ -145,6 +159,7 @@ async function initDb() {
         priority: 'high',
         category: 'Despliegue',
         area: 'desarrollo',
+        user_id: defaultOwnerId,
         due_date: tomorrow,
         position: 0
       },
@@ -155,6 +170,7 @@ async function initDb() {
         priority: 'medium',
         category: 'Tutorial',
         area: 'desarrollo',
+        user_id: defaultOwnerId,
         due_date: nextWeek,
         position: 0
       },
@@ -165,6 +181,7 @@ async function initDb() {
         priority: 'urgent',
         category: 'Sistema',
         area: 'desarrollo',
+        user_id: defaultOwnerId,
         due_date: now.toISOString().split('T')[0],
         position: 0
       }
@@ -185,6 +202,7 @@ async function initDb() {
         priority: 'high',
         category: 'UI/UX',
         area: 'diseno',
+        user_id: defaultOwnerId,
         due_date: tomorrow,
         position: 0
       },
@@ -195,6 +213,7 @@ async function initDb() {
         priority: 'medium',
         category: 'Branding',
         area: 'diseno',
+        user_id: defaultOwnerId,
         due_date: nextWeek,
         position: 0
       },
@@ -205,6 +224,7 @@ async function initDb() {
         priority: 'low',
         category: 'Recursos',
         area: 'diseno',
+        user_id: defaultOwnerId,
         due_date: now.toISOString().split('T')[0],
         position: 0
       }

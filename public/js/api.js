@@ -118,9 +118,22 @@ export const api = {
   },
 
   // Tareas
+  async getTaskOwners(area) {
+    const params = new URLSearchParams();
+    if (area && area !== 'all') params.append('area', area);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API_BASE}/tasks/owners${query}`, {
+      headers: getHeaders()
+    });
+    if (!res.ok) throw new Error('Error al cargar usuarios');
+    return await res.json();
+  },
+
   async getTasks(filters = {}) {
     const params = new URLSearchParams();
-    if (filters.area && filters.area !== 'all') params.append('area', filters.area);
+    if (filters.area) params.append('area', filters.area);
+    if (filters.board) params.append('board', filters.board);
+    if (filters.user_id && filters.user_id !== 'all') params.append('user_id', filters.user_id);
     if (filters.search) params.append('search', filters.search);
     if (filters.status && filters.status !== 'all') params.append('status', filters.status);
     if (filters.priority && filters.priority !== 'all') params.append('priority', filters.priority);
@@ -134,9 +147,11 @@ export const api = {
     return await res.json();
   },
 
-  async getStats(area) {
+  async getStats(area, board = 'general', userId = 'all') {
     const params = new URLSearchParams();
-    if (area && area !== 'all') params.append('area', area);
+    if (area) params.append('area', area);
+    if (board) params.append('board', board);
+    if (userId && userId !== 'all') params.append('user_id', userId);
     const query = params.toString() ? `?${params.toString()}` : '';
     const res = await fetch(`${API_BASE}/tasks/stats${query}`, {
       headers: getHeaders()
@@ -145,9 +160,11 @@ export const api = {
     return await res.json();
   },
 
-  async getCategories(area) {
+  async getCategories(area, board = 'general', userId = 'all') {
     const params = new URLSearchParams();
-    if (area && area !== 'all') params.append('area', area);
+    if (area) params.append('area', area);
+    if (board) params.append('board', board);
+    if (userId && userId !== 'all') params.append('user_id', userId);
     const query = params.toString() ? `?${params.toString()}` : '';
     const res = await fetch(`${API_BASE}/tasks/categories${query}`, {
       headers: getHeaders()

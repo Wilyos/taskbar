@@ -5,7 +5,9 @@ import { initKanbanDnD } from './kanban.js';
 const state = {
   tasks: [],
   stats: null,
+  owners: [],
   currentUser: auth.getUser(),
+  currentBoard: localStorage.getItem('taskbar_board') || 'mine',
   currentArea: localStorage.getItem('taskbar_area') || 'desarrollo',
   activeView: localStorage.getItem('taskbar_view') || 'kanban',
   theme: localStorage.getItem('taskbar_theme') || 'dark',
@@ -13,16 +15,23 @@ const state = {
     search: '',
     status: 'all',
     priority: 'all',
-    category: 'all'
+    category: 'all',
+    user_id: 'all'
   },
   editingTaskId: null
 };
 
 // Elementos DOM
 const elements = {
-  // Navigation & Switcher de Áreas
+  // Navigation & Switcher de Tableros / Áreas
   areaNavContainer: document.getElementById('areaNavContainer'),
+  boardSwitcherWrap: document.getElementById('boardSwitcherWrap'),
+  tabBoardMine: document.getElementById('tabBoardMine'),
+  tabBoardGeneral: document.getElementById('tabBoardGeneral'),
+  badgeCountMine: document.getElementById('badgeCountMine'),
+  badgeCountGeneral: document.getElementById('badgeCountGeneral'),
   areaSwitcherWrap: document.getElementById('areaSwitcherWrap'),
+  tabAreaAll: document.getElementById('tabAreaAll'),
   tabAreaDev: document.getElementById('tabAreaDev'),
   tabAreaDesign: document.getElementById('tabAreaDesign'),
   badgeCountDev: document.getElementById('badgeCountDev'),
@@ -56,6 +65,7 @@ const elements = {
 
   // Filters & Search
   searchInput: document.getElementById('searchInput'),
+  filterUser: document.getElementById('filterUser'),
   filterPriority: document.getElementById('filterPriority'),
   filterCategory: document.getElementById('filterCategory'),
 
@@ -79,6 +89,8 @@ const elements = {
   taskArea: document.getElementById('taskArea'),
   groupTaskArea: document.getElementById('groupTaskArea'),
   inputDueDate: document.getElementById('taskDueDate'),
+  groupTaskOwner: document.getElementById('groupTaskOwner'),
+  taskOwner: document.getElementById('taskOwner'),
 
   // Modal Autenticación
   authModal: document.getElementById('authModal'),
@@ -142,6 +154,16 @@ function renderAuthSection() {
   const isRegularUser = isAuth && state.currentUser.role === 'user';
   const isActive = isAuth && (isAdmin || state.currentUser.is_active);
 
+  // Control de Tablero (Personal vs General)
+  if (isAuth) {
+    if (elements.tabBoardMine) elements.tabBoardMine.style.display = 'inline-flex';
+    const savedBoard = localStorage.getItem('taskbar_board');
+    state.currentBoard = (savedBoard === 'mine' || savedBoard === 'general') ? savedBoard : 'mine';
+  } else {
+    if (elements.tabBoardMine) elements.tabBoardMine.style.display = 'none';
+    state.currentBoard = 'general';
+  }
+
   // Control de Área: usuario regular vs admin / visitante
   if (isRegularUser) {
     state.currentArea = state.currentUser.area || 'desarrollo';
@@ -161,6 +183,7 @@ function renderAuthSection() {
     if (elements.userAreaBadge) elements.userAreaBadge.style.display = 'none';
   }
 
+  updateBoardUI();
   updateAreaUI();
 
   // Mostrar u ocultar botón de gestión de usuarios para admin
@@ -195,14 +218,50 @@ function renderAuthSection() {
   }
 }
 
+// Actualizar visualmente la pestaña de tablero activo
+function updateBoardUI() {
+  const isMine = state.currentBoard === 'mine' && auth.isAuthenticated() && state.currentUser;
+  if (elements.tabBoardMine && elements.tabBoardGeneral) {
+    elements.tabBoardMine.classList.toggle('active', !!isMine);
+    elements.tabBoardMine.setAttribute('aria-selected', isMine ? 'true' : 'false');
+    elements.tabBoardGeneral.classList.toggle('active', !isMine);
+    elements.tabBoardGeneral.setAttribute('aria-selected', !isMine ? 'true' : 'false');
+  }
+  if (elements.filterUser) {
+    elements.filterUser.style.display = isMine ? 'none' : 'inline-block';
+  }
+}
+
+// Conmutar tablero (Mi Tablero / Tablero General)
+async function switchBoard(board) {
+  if (board === 'mine' && (!auth.isAuthenticated() || !state.currentUser)) {
+    openAuthModal('login');
+    return;
+  }
+  state.currentBoard = board;
+  localStorage.setItem('taskbar_board', board);
+  if (board === 'mine') {
+    state.filters.user_id = 'all';
+    if (elements.filterUser) elements.filterUser.value = 'all';
+  }
+  updateBoardUI();
+  await loadData();
+}
+
 // Actualizar visualmente la pestaña de área activa
 function updateAreaUI() {
+  if (elements.tabAreaAll) {
+    const isAll = state.currentArea === 'all';
+    elements.tabAreaAll.classList.toggle('active', isAll);
+    elements.tabAreaAll.setAttribute('aria-selected', isAll ? 'true' : 'false');
+  }
   if (elements.tabAreaDev && elements.tabAreaDesign) {
     const isDev = state.currentArea === 'desarrollo';
+    const isDesign = state.currentArea === 'diseno';
     elements.tabAreaDev.classList.toggle('active', isDev);
     elements.tabAreaDev.setAttribute('aria-selected', isDev ? 'true' : 'false');
-    elements.tabAreaDesign.classList.toggle('active', !isDev);
-    elements.tabAreaDesign.setAttribute('aria-selected', !isDev ? 'true' : 'false');
+    elements.tabAreaDesign.classList.toggle('active', isDesign);
+    elements.tabAreaDesign.setAttribute('aria-selected', isDesign ? 'true' : 'false');
   }
 }
 
@@ -220,6 +279,13 @@ async function switchArea(area) {
   await loadData();
 }
 
+function getEffectiveBoardAndUser() {
+  const isAuth = auth.isAuthenticated() && state.currentUser;
+  const board = (isAuth && state.currentBoard === 'mine') ? 'mine' : 'general';
+  const userId = board === 'mine' ? 'all' : state.filters.user_id;
+  return { board, userId };
+}
+
 // Carga de Datos
 async function loadData() {
   try {
@@ -227,21 +293,31 @@ async function loadData() {
       state.currentArea = state.currentUser.area || 'desarrollo';
     }
 
-    const filters = { ...state.filters, area: state.currentArea };
-    const [tasks, stats, categories] = await Promise.all([
+    const { board, userId } = getEffectiveBoardAndUser();
+    const filters = {
+      ...state.filters,
+      area: state.currentArea,
+      board,
+      user_id: userId
+    };
+
+    const [tasks, stats, categories, owners] = await Promise.all([
       api.getTasks(filters),
-      api.getStats(state.currentArea),
-      api.getCategories(state.currentArea)
+      api.getStats(state.currentArea, board, userId),
+      api.getCategories(state.currentArea, board, userId),
+      api.getTaskOwners(state.currentArea)
     ]);
 
     state.tasks = tasks;
     state.stats = stats;
+    state.owners = owners || [];
 
     renderStats();
     renderCategories(categories);
+    renderUserFilter(state.owners);
     renderCurrentView();
 
-    // Actualizar conteos en pestañas de área
+    // Actualizar conteos en pestañas de área y tablero
     updateAreaCounters();
   } catch (error) {
     showToast(error.message || 'Error al cargar datos', 'error');
@@ -250,14 +326,27 @@ async function loadData() {
 
 async function updateAreaCounters() {
   try {
+    const isAuth = auth.isAuthenticated() && state.currentUser;
     const isAdminOrGuest = !state.currentUser || state.currentUser.role === 'admin';
+    const { board, userId } = getEffectiveBoardAndUser();
+
     if (isAdminOrGuest && elements.badgeCountDev && elements.badgeCountDesign) {
       const [devStats, designStats] = await Promise.all([
-        api.getStats('desarrollo'),
-        api.getStats('diseno')
+        api.getStats('desarrollo', board, userId),
+        api.getStats('diseno', board, userId)
       ]);
       elements.badgeCountDev.textContent = devStats.total || 0;
       elements.badgeCountDesign.textContent = designStats.total || 0;
+    }
+
+    if (elements.badgeCountGeneral) {
+      const generalStats = await api.getStats(state.currentArea, 'general', 'all');
+      elements.badgeCountGeneral.textContent = generalStats.total || 0;
+    }
+
+    if (isAuth && elements.badgeCountMine) {
+      const mineStats = await api.getStats(state.currentArea, 'mine', 'all');
+      elements.badgeCountMine.textContent = mineStats.total || 0;
     }
   } catch (e) {
     // No interrumpir si falla el contador secundario
@@ -288,6 +377,22 @@ function renderKanban() {
   elements.colDoneList.innerHTML = renderCardsList(doneTasks);
 }
 
+function canModifyTask(task) {
+  if (!state.currentUser) return false;
+  if (state.currentUser.role === 'admin') return true;
+  if (!state.currentUser.is_active) return false;
+  return task.user_id === state.currentUser.id;
+}
+
+function renderUserBadge(task) {
+  if (!task.user_id) {
+    return `<span class="badge badge-user badge-user-unassigned" title="Tarea general sin usuario asignado">👤 General</span>`;
+  }
+  const isMe = state.currentUser && task.user_id === state.currentUser.id;
+  const label = task.user_name || task.user_username || 'Usuario';
+  return `<span class="badge badge-user ${isMe ? 'badge-user-me' : ''}" title="Pertenece a ${escapeHtml(label)} (@${escapeHtml(task.user_username || '')})">👤 ${escapeHtml(label)}</span>`;
+}
+
 function renderCardsList(tasks) {
   if (tasks.length === 0) {
     return `<div class="empty-state" style="padding: 1.5rem 0.5rem; font-size: 0.8rem;">Sin tareas en este estado</div>`;
@@ -295,10 +400,13 @@ function renderCardsList(tasks) {
 
   return tasks.map(task => {
     const isDesign = task.area === 'diseno';
+    const isEditable = !state.currentUser || canModifyTask(task);
+    const isDraggable = !state.currentUser || canModifyTask(task);
     return `
-    <div class="kanban-card" draggable="true" data-id="${task.id}" data-status="${task.status}">
+    <div class="kanban-card" draggable="${isDraggable ? 'true' : 'false'}" data-id="${task.id}" data-status="${task.status}">
       <div class="card-top-row">
         <div class="card-tags">
+          ${renderUserBadge(task)}
           <span class="badge ${isDesign ? 'badge-area-design' : 'badge-area-dev'}">
             ${isDesign ? '🎨 Diseño' : '💻 Dev'}
           </span>
@@ -314,10 +422,12 @@ function renderCardsList(tasks) {
 
       <div class="card-bottom-row">
         ${renderDueDateBadge(task.due_date)}
+        ${isEditable ? `
         <div class="card-actions">
           <button class="btn-card-action" onclick="window.app.openEditModal(${task.id})" title="Editar">✏️</button>
           <button class="btn-card-action danger" onclick="window.app.deleteTask(${task.id})" title="Eliminar">🗑️</button>
         </div>
+        ` : ''}
       </div>
     </div>
   `;
@@ -341,6 +451,7 @@ function renderList() {
   elements.taskListItems.innerHTML = state.tasks.map(task => {
     const isCompleted = task.status === 'completed';
     const isDesign = task.area === 'diseno';
+    const isEditable = !state.currentUser || canModifyTask(task);
     return `
       <div class="list-item-card ${isCompleted ? 'completed-task' : ''}">
         <div class="task-main-col">
@@ -348,8 +459,9 @@ function renderList() {
             type="checkbox" 
             class="custom-checkbox" 
             ${isCompleted ? 'checked' : ''} 
+            ${!isEditable ? 'disabled' : ''}
             onchange="window.app.toggleTaskStatus(${task.id}, this)"
-            title="Marcar como ${isCompleted ? 'pendiente' : 'completada'}"
+            title="${isEditable ? `Marcar como ${isCompleted ? 'pendiente' : 'completada'}` : 'Solo el propietario puede modificar esta tarea'}"
           />
           <div class="task-info">
             <span class="task-title">${escapeHtml(task.title)}</span>
@@ -358,6 +470,7 @@ function renderList() {
         </div>
 
         <div class="task-meta-col">
+          ${renderUserBadge(task)}
           <span class="badge ${isDesign ? 'badge-area-design' : 'badge-area-dev'}">
             ${isDesign ? '🎨 Diseño' : '💻 Dev'}
           </span>
@@ -369,8 +482,10 @@ function renderList() {
         </div>
 
         <div class="task-actions-col">
-          <button class="btn-icon" onclick="window.app.openEditModal(${task.id})" title="Editar tarea">✏️</button>
-          <button class="btn-icon" onclick="window.app.deleteTask(${task.id})" title="Eliminar tarea" style="color: var(--priority-urgent);">🗑️</button>
+          ${isEditable ? `
+            <button class="btn-icon" onclick="window.app.openEditModal(${task.id})" title="Editar tarea">✏️</button>
+            <button class="btn-icon" onclick="window.app.deleteTask(${task.id})" title="Eliminar tarea" style="color: var(--priority-urgent);">🗑️</button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -398,6 +513,20 @@ function renderCategories(categories) {
     opt.textContent = cat;
     if (cat === current) opt.selected = true;
     elements.filterCategory.appendChild(opt);
+  });
+}
+
+// Renderizar Usuarios en Selector de Filtro (Tablero General)
+function renderUserFilter(owners) {
+  if (!elements.filterUser) return;
+  const current = state.filters.user_id;
+  elements.filterUser.innerHTML = `<option value="all">Todos los Usuarios</option>`;
+  owners.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = String(u.id);
+    opt.textContent = `👤 ${u.name} (@${u.username})`;
+    if (String(u.id) === String(current)) opt.selected = true;
+    elements.filterUser.appendChild(opt);
   });
 }
 
@@ -465,6 +594,12 @@ async function handleTaskMoved({ id, targetStatus, position }) {
   const task = state.tasks.find(t => t.id === taskId);
   if (!task) return;
 
+  if (!canModifyTask(task)) {
+    showToast('Solo puedes mover tus propias tareas.', 'error');
+    renderCurrentView();
+    return;
+  }
+
   const oldStatus = task.status;
   task.status = targetStatus;
   task.position = position;
@@ -472,7 +607,8 @@ async function handleTaskMoved({ id, targetStatus, position }) {
 
   try {
     await api.updateStatusAndPosition(taskId, targetStatus, position);
-    state.stats = await api.getStats();
+    const { board, userId } = getEffectiveBoardAndUser();
+    state.stats = await api.getStats(state.currentArea, board, userId);
     renderStats();
     if (oldStatus !== targetStatus) {
       showToast(`Tarea movida a "${formatStatus(targetStatus)}"`, 'success');
@@ -511,11 +647,28 @@ async function toggleTaskStatus(id, checkboxElem) {
   }
 }
 
+function populateOwnerSelect(selectedUserId) {
+  if (!elements.groupTaskOwner || !elements.taskOwner) return;
+  const isAdmin = auth.isAdmin();
+  elements.groupTaskOwner.style.display = isAdmin ? 'block' : 'none';
+  if (!isAdmin) return;
+
+  elements.taskOwner.innerHTML = `<option value="">🌐 Sin asignar (General)</option>`;
+  state.owners.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = String(u.id);
+    opt.textContent = `👤 ${u.name} (@${u.username})`;
+    if (selectedUserId && String(u.id) === String(selectedUserId)) {
+      opt.selected = true;
+    }
+    elements.taskOwner.appendChild(opt);
+  });
+}
+
 // Modal de Creación / Edición
 function openCreateModal(defaultStatus = 'todo') {
   if (!ensureCanModify('crear nuevas tareas')) return;
 
-  const isAdmin = auth.isAdmin();
   const isRegularUser = state.currentUser && state.currentUser.role === 'user';
 
   state.editingTaskId = null;
@@ -526,10 +679,13 @@ function openCreateModal(defaultStatus = 'todo') {
   elements.inputCategory.value = 'General';
 
   if (elements.taskArea) {
-    elements.taskArea.value = state.currentArea;
+    const defaultArea = state.currentArea === 'all' ? 'desarrollo' : state.currentArea;
+    elements.taskArea.value = defaultArea;
     // Si es usuario regular, no puede cambiar el área
     elements.taskArea.disabled = isRegularUser;
   }
+
+  populateOwnerSelect(state.currentUser ? state.currentUser.id : null);
 
   elements.taskModal.classList.add('is-open');
   elements.inputTitle.focus();
@@ -540,6 +696,11 @@ function openEditModal(id) {
 
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
+
+  if (!canModifyTask(task)) {
+    showToast('Solo puedes editar tus propias tareas.', 'error');
+    return;
+  }
 
   const isRegularUser = state.currentUser && state.currentUser.role === 'user';
 
@@ -553,9 +714,12 @@ function openEditModal(id) {
   elements.inputDueDate.value = task.due_date || '';
 
   if (elements.taskArea) {
-    elements.taskArea.value = task.area || state.currentArea;
+    const fallbackArea = state.currentArea === 'all' ? 'desarrollo' : state.currentArea;
+    elements.taskArea.value = task.area || fallbackArea;
     elements.taskArea.disabled = isRegularUser;
   }
+
+  populateOwnerSelect(task.user_id || null);
 
   elements.taskModal.classList.add('is-open');
   elements.inputTitle.focus();
@@ -578,7 +742,7 @@ async function handleFormSubmit(e) {
 
   const selectedArea = elements.taskArea && !elements.taskArea.disabled 
     ? elements.taskArea.value 
-    : state.currentArea;
+    : (state.currentArea === 'all' ? 'desarrollo' : state.currentArea);
 
   const payload = {
     title,
@@ -589,6 +753,10 @@ async function handleFormSubmit(e) {
     area: selectedArea,
     due_date: elements.inputDueDate.value || null
   };
+
+  if (auth.isAdmin() && elements.taskOwner) {
+    payload.user_id = elements.taskOwner.value ? Number(elements.taskOwner.value) : null;
+  }
 
   try {
     if (state.editingTaskId) {
@@ -661,6 +829,7 @@ async function handleLoginSubmit(e) {
     } else {
       showToast(`¡Bienvenido de nuevo, ${data.user.name}! ⚡`, 'success');
     }
+    await loadData();
   } catch (error) {
     showToast(error.message || 'Error al iniciar sesión', 'error');
   }
@@ -857,7 +1026,18 @@ function escapeHtml(str) {
 
 // Event Listeners
 function setupEventListeners() {
+  // Conmutador de Tableros (Mi Tablero / Tablero General)
+  if (elements.tabBoardMine) {
+    elements.tabBoardMine.addEventListener('click', () => switchBoard('mine'));
+  }
+  if (elements.tabBoardGeneral) {
+    elements.tabBoardGeneral.addEventListener('click', () => switchBoard('general'));
+  }
+
   // Conmutador de Áreas (Tabs)
+  if (elements.tabAreaAll) {
+    elements.tabAreaAll.addEventListener('click', () => switchArea('all'));
+  }
   if (elements.tabAreaDev) {
     elements.tabAreaDev.addEventListener('click', () => switchArea('desarrollo'));
   }
@@ -931,6 +1111,13 @@ function setupEventListeners() {
       loadData();
     }, 250);
   });
+
+  if (elements.filterUser) {
+    elements.filterUser.addEventListener('change', (e) => {
+      state.filters.user_id = e.target.value;
+      loadData();
+    });
+  }
 
   elements.filterPriority.addEventListener('change', (e) => {
     state.filters.priority = e.target.value;

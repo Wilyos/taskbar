@@ -19,6 +19,20 @@ const userModel = {
       .orderBy('id', 'asc');
   },
 
+  async getActiveBasic(area) {
+    let query = db('users')
+      .select('id', 'username', 'name', 'area')
+      .where('is_active', true);
+
+    if (area && area !== 'all' && area !== 'todas') {
+      query = query.where((builder) => {
+        builder.where('area', area).orWhere('area', 'todas');
+      });
+    }
+
+    return await query.orderBy('name', 'asc');
+  },
+
   async create({ username, password, name, role = 'user', area = 'desarrollo', is_active = false }) {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
