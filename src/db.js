@@ -17,7 +17,8 @@ if (process.env.DATABASE_URL) {
     pool: { min: 2, max: 10 }
   });
 } else {
-  const dataDir = path.join(__dirname, '..', 'data');
+  // DATA_DIR permite apuntar a un volumen persistente (ej. /data en Railway)
+  const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
