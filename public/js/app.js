@@ -1022,22 +1022,13 @@ async function loadAndRenderUsers() {
                 ✏️ Correo
               </button>
               
-              <!-- Selector de Rol por Usuario -->
+              <!-- Selector de Rol (Administrador / Desarrollo Web / Diseño) -->
               <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
                 <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Rol:</span>
                 <select class="form-select" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; height: auto; border-radius: var(--radius-sm);" onchange="window.app.changeUserRole(${u.id}, this.value)" ${isMasterAdmin ? 'disabled' : ''}>
-                  <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>👤 Usuario</option>
-                  <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👑 Administrador</option>
-                </select>
-              </div>
-
-              <!-- Selector de Área por Usuario -->
-              <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
-                <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Área:</span>
-                <select class="form-select" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; height: auto; border-radius: var(--radius-sm);" onchange="window.app.changeUserArea(${u.id}, this.value)" ${isMasterAdmin || u.role === 'admin' ? 'disabled' : ''}>
-                  <option value="desarrollo" ${u.area === 'desarrollo' ? 'selected' : ''}>💻 Desarrollo Web</option>
-                  <option value="diseno" ${u.area === 'diseno' ? 'selected' : ''}>🎨 Diseño</option>
-                  ${isMasterAdmin || u.role === 'admin' ? '<option value="todas" selected>👑 Acceso Total</option>' : ''}
+                  <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👑 Administrador (ve todo)</option>
+                  <option value="desarrollo" ${u.role !== 'admin' && u.area !== 'diseno' ? 'selected' : ''}>💻 Desarrollo Web</option>
+                  <option value="diseno" ${u.role !== 'admin' && u.area === 'diseno' ? 'selected' : ''}>🎨 Diseño</option>
                 </select>
               </div>
             </div>
@@ -1095,8 +1086,12 @@ async function changeUserArea(id, newArea) {
 }
 
 async function changeUserRole(id, newRole) {
-  const label = newRole === 'admin' ? 'Administrador (podrá ver y gestionar ambas áreas y usuarios)' : 'Usuario';
-  if (!confirm(`¿Asignar el rol de ${label}?`)) {
+  const labels = {
+    admin: 'Administrador (podrá ver y gestionar ambas áreas y usuarios)',
+    desarrollo: 'Desarrollo Web (solo verá el área de Desarrollo Web)',
+    diseno: 'Diseño (solo verá el área de Diseño)'
+  };
+  if (!confirm(`¿Asignar el rol de ${labels[newRole] || newRole}?`)) {
     await loadAndRenderUsers();
     return;
   }

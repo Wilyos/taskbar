@@ -134,21 +134,17 @@ const userModel = {
     const user = await db('users').where({ id }).first();
     if (!user) return null;
 
-    if (!['user', 'admin'].includes(role)) {
-      throw new Error('Rol inválido. Debe ser "user" o "admin".');
+    // Roles: 'admin' (ve todo), 'desarrollo' (solo Desarrollo Web), 'diseno' (solo Diseño)
+    if (!['admin', 'desarrollo', 'diseno'].includes(role)) {
+      throw new Error('Rol inválido. Debe ser "admin", "desarrollo" o "diseno".');
     }
     if (user.username === 'wilyos' && role !== 'admin') {
       throw new Error('No es posible quitar el rol de administrador al administrador maestro wilyos.');
     }
 
-    const updates = { role };
-    if (role === 'admin') {
-      // Un admin ve ambas áreas y queda activo
-      updates.area = 'todas';
-      updates.is_active = true;
-    } else if (user.area === 'todas') {
-      updates.area = 'desarrollo';
-    }
+    const updates = role === 'admin'
+      ? { role: 'admin', area: 'todas', is_active: true }
+      : { role: 'user', area: role };
 
     await db('users').where({ id }).update(updates);
     return await this.findById(id);
