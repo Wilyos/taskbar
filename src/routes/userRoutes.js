@@ -63,4 +63,27 @@ router.patch('/:id/area', async (req, res) => {
   }
 });
 
+// PATCH /api/users/:id/email - Asignar o actualizar correo de un usuario (admin)
+router.patch('/:id/email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ error: 'Por favor ingresa un correo electrónico válido.' });
+    }
+
+    const updatedUser = await userModel.setEmail(req.params.id, email);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    res.json({
+      message: `Correo de ${updatedUser.username} actualizado correctamente.`,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error al actualizar correo del usuario:', error);
+    res.status(400).json({ error: error.message || 'Error al actualizar correo del usuario.' });
+  }
+});
+
 module.exports = router;

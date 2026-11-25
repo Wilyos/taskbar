@@ -6,16 +6,21 @@ const userModel = {
     return await db('users').where({ username: username.toLowerCase().trim() }).first();
   },
 
+  async findByEmail(email) {
+    if (!email) return null;
+    return await db('users').where({ email: email.toLowerCase().trim() }).first();
+  },
+
   async findById(id) {
     const user = await db('users').where({ id }).first();
     if (!user) return null;
-    const { password_hash, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    const { password_hash, reset_token, reset_token_expires, ...userWithoutSensitive } = user;
+    return userWithoutSensitive;
   },
 
   async getAll() {
     return await db('users')
-      .select('id', 'username', 'name', 'role', 'area', 'is_active', 'created_at')
+      .select('id', 'username', 'name', 'email', 'role', 'area', 'is_active', 'created_at')
       .orderBy('id', 'asc');
   },
 
@@ -33,11 +38,12 @@ const userModel = {
     return await query.orderBy('name', 'asc');
   },
 
-  async create({ username, password, name, role = 'user', area = 'desarrollo', is_active = false }) {
+  async create({ username, password, name, role = 'user', area = 'desarrollo', email = null, is_active = false }) {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
     const safeArea = ['desarrollo', 'diseno'].includes(area) ? area : 'desarrollo';
+    const cleanEmail = email ? email.toLowerCase().trim() : null;
 
     const [id] = await db('users').insert({
       username: username.toLowerCase().trim(),
@@ -45,12 +51,55 @@ const userModel = {
       name: name.trim(),
       role,
       area: safeArea,
+      email: cleanEmail,
       is_active: !!is_active,
       created_at: new Date()
     });
 
     const insertedId = typeof id === 'object' && id !== null ? id.id : id;
     return await this.findById(insertedId || id);
+  },
+
+  async setEmail(id, email) {
+    const cleanEmail = email ? email.toLowerCase().trim() : null;
+    if (cleanEmail) {
+      const existing = await db('users')
+        .where({ email: cleanEmail })
+        .whereNot({ id })
+        .first();
+      if (existing) {
+        throw new Error('Este correo electrónico ya está asociado a otra cuenta.');
+      }
+    }
+
+    await db('users').where({ id }).update({ email: cleanEmail });
+    return await this.findById(id);
+  },
+
+  async setResetToken(id, tokenHash, expiresAt) {
+    await db('users').where({ id }).update({
+      reset_token: tokenHash,
+      reset_token_expires: expiresAt
+    });
+  },
+
+  async findByValidResetToken(tokenHash) {
+    const now = Date.now();
+    return await db('users')
+      .where({ reset_token: tokenHash })
+      .where('reset_token_expires', '>', now)
+      .first();
+  },
+
+  async updatePasswordAndClearReset(id, newPassword) {
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(newPassword, salt);
+    await db('users').where({ id }).update({
+      password_hash,
+      reset_token: null,
+      reset_token_expires: null
+    });
+    return await this.findById(id);
   },
 
   async setActiveStatus(id, isActive) {

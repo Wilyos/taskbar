@@ -46,6 +46,9 @@ async function initDb() {
       table.string('name', 120).notNullable();
       table.string('role', 50).notNullable().defaultTo('user');
       table.string('area', 50).notNullable().defaultTo('desarrollo');
+      table.string('email', 150).nullable();
+      table.string('reset_token', 255).nullable();
+      table.bigInteger('reset_token_expires').nullable();
       table.boolean('is_active').notNullable().defaultTo(false);
       table.timestamp('created_at').defaultTo(db.fn.now());
     });
@@ -65,6 +68,31 @@ async function initDb() {
       console.log('🛠 Agregando columna "area" a la tabla users...');
       await db.schema.table('users', (table) => {
         table.string('area', 50).notNullable().defaultTo('desarrollo');
+      });
+    }
+
+    // Verificar columnas de correo y recuperación de contraseña
+    const hasEmail = await db.schema.hasColumn('users', 'email');
+    if (!hasEmail) {
+      console.log('🛠 Agregando columna "email" a la tabla users...');
+      await db.schema.table('users', (table) => {
+        table.string('email', 150).nullable();
+      });
+    }
+
+    const hasResetToken = await db.schema.hasColumn('users', 'reset_token');
+    if (!hasResetToken) {
+      console.log('🛠 Agregando columna "reset_token" a la tabla users...');
+      await db.schema.table('users', (table) => {
+        table.string('reset_token', 255).nullable();
+      });
+    }
+
+    const hasResetExpires = await db.schema.hasColumn('users', 'reset_token_expires');
+    if (!hasResetExpires) {
+      console.log('🛠 Agregando columna "reset_token_expires" a la tabla users...');
+      await db.schema.table('users', (table) => {
+        table.bigInteger('reset_token_expires').nullable();
       });
     }
   }

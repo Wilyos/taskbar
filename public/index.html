@@ -284,7 +284,7 @@
         <button type="button" class="btn-icon" id="btnCloseAuthModal" title="Cerrar modal">✕</button>
       </div>
 
-      <div class="modal-tabs">
+      <div class="modal-tabs" id="authModalTabs">
         <button type="button" class="modal-tab-btn active" id="tabBtnLogin">Iniciar Sesión</button>
         <button type="button" class="modal-tab-btn" id="tabBtnRegister">Crear Cuenta</button>
       </div>
@@ -300,6 +300,12 @@
           <div class="form-group">
             <label class="form-label" for="loginPassword">Contraseña</label>
             <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+
+          <div style="text-align: right; margin-top: -0.25rem;">
+            <button type="button" id="btnShowForgot" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; font-weight: 600; padding: 0;">
+              ¿Olvidaste tu contraseña?
+            </button>
           </div>
         </div>
 
@@ -327,6 +333,11 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="regEmail">Correo Electrónico (para recuperar contraseña)</label>
+            <input type="email" id="regEmail" class="form-input" placeholder="tu@correo.com" required autocomplete="email" />
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="regArea">Área de Trabajo</label>
             <select id="regArea" class="form-select" required>
               <option value="desarrollo">💻 Desarrollo Web</option>
@@ -343,6 +354,69 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="btnCancelRegModal">Cancelar</button>
           <button type="submit" class="btn btn-primary">Crear Cuenta</button>
+        </div>
+      </form>
+
+      <!-- Formulario Solicitar Recuperación de Contraseña -->
+      <form id="forgotForm" style="display: none;">
+        <div class="modal-body">
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+            Ingresa el correo electrónico asociado a tu cuenta y te enviaremos un enlace y código de recuperación válido por 30 minutos.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="forgotEmail">Correo Electrónico</label>
+            <input type="email" id="forgotEmail" class="form-input" placeholder="tu@correo.com" required autocomplete="email" />
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem;">
+            <button type="button" id="btnBackToLogin" style="background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; padding: 0;">
+              ← Volver a Iniciar Sesión
+            </button>
+            <button type="button" id="btnGoToResetWithCode" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; font-weight: 600; padding: 0;">
+              Ya tengo un código →
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelForgotModal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSendForgot">Enviar Correo</button>
+        </div>
+      </form>
+
+      <!-- Formulario Restablecer Contraseña -->
+      <form id="resetForm" style="display: none;">
+        <div class="modal-body">
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+            Ingresa el código que recibiste en tu correo y define tu nueva contraseña.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="resetTokenInput">Código de Recuperación</label>
+            <input type="text" id="resetTokenInput" class="form-input" placeholder="Pega aquí el código recibido" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="resetNewPassword">Nueva Contraseña</label>
+            <input type="password" id="resetNewPassword" class="form-input" placeholder="min. 6 caracteres" required autocomplete="new-password" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="resetConfirmPassword">Confirmar Nueva Contraseña</label>
+            <input type="password" id="resetConfirmPassword" class="form-input" placeholder="Repite tu contraseña" required autocomplete="new-password" />
+          </div>
+
+          <div style="text-align: left;">
+            <button type="button" id="btnBackToForgot" style="background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; padding: 0;">
+              ← Solicitar otro código
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelResetModal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitReset">Guardar Contraseña</button>
         </div>
       </form>
     </div>

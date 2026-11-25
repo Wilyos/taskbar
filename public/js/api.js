@@ -85,6 +85,40 @@ export const api = {
     return data;
   },
 
+  async forgotPassword(email) {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al solicitar recuperación');
+    return data;
+  },
+
+  async resetPassword(token, password) {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al restablecer la contraseña');
+    return data;
+  },
+
+  async updateMyEmail(email) {
+    const res = await fetch(`${API_BASE}/auth/email`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al actualizar correo');
+    auth.setUser(data.user);
+    return data;
+  },
+
   // Administración de Usuarios (Solo wilyos / admin)
   async getUsers() {
     const res = await fetch(`${API_BASE}/users`, {
@@ -114,6 +148,17 @@ export const api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al cambiar área del usuario');
+    return data;
+  },
+
+  async setUserEmail(id, email) {
+    const res = await fetch(`${API_BASE}/users/${id}/email`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al actualizar correo del usuario');
     return data;
   },
 

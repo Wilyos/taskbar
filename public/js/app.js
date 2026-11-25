@@ -94,19 +94,34 @@ const elements = {
 
   // Modal Autenticación
   authModal: document.getElementById('authModal'),
+  authModalTitle: document.getElementById('authModalTitle'),
+  authModalTabs: document.getElementById('authModalTabs'),
   btnCloseAuthModal: document.getElementById('btnCloseAuthModal'),
   btnCancelAuthModal: document.getElementById('btnCancelAuthModal'),
   btnCancelRegModal: document.getElementById('btnCancelRegModal'),
+  btnCancelForgotModal: document.getElementById('btnCancelForgotModal'),
+  btnCancelResetModal: document.getElementById('btnCancelResetModal'),
   tabBtnLogin: document.getElementById('tabBtnLogin'),
   tabBtnRegister: document.getElementById('tabBtnRegister'),
   loginForm: document.getElementById('loginForm'),
   registerForm: document.getElementById('registerForm'),
+  forgotForm: document.getElementById('forgotForm'),
+  resetForm: document.getElementById('resetForm'),
   loginUsername: document.getElementById('loginUsername'),
   loginPassword: document.getElementById('loginPassword'),
   regName: document.getElementById('regName'),
   regUsername: document.getElementById('regUsername'),
+  regEmail: document.getElementById('regEmail'),
   regArea: document.getElementById('regArea'),
   regPassword: document.getElementById('regPassword'),
+  btnShowForgot: document.getElementById('btnShowForgot'),
+  forgotEmail: document.getElementById('forgotEmail'),
+  btnBackToLogin: document.getElementById('btnBackToLogin'),
+  btnGoToResetWithCode: document.getElementById('btnGoToResetWithCode'),
+  btnBackToForgot: document.getElementById('btnBackToForgot'),
+  resetTokenInput: document.getElementById('resetTokenInput'),
+  resetNewPassword: document.getElementById('resetNewPassword'),
+  resetConfirmPassword: document.getElementById('resetConfirmPassword'),
 
   // Modal Usuarios (Admin)
   usersModal: document.getElementById('usersModal'),
@@ -145,6 +160,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await loadData();
+
+  // Si viene un token de recuperación en la URL (?resetToken=...), abrir modal de restablecimiento
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('resetToken');
+  if (resetToken) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    openAuthModal('reset');
+    if (elements.resetTokenInput) {
+      elements.resetTokenInput.value = resetToken;
+    }
+    if (elements.resetNewPassword) {
+      elements.resetNewPassword.focus();
+    }
+  }
 });
 
 // Renderizar Sección de Usuario en el Header y Visibilidad de Áreas
@@ -192,15 +221,21 @@ function renderAuthSection() {
   }
 
   if (isAuth) {
+    const hasEmail = Boolean(state.currentUser.email);
     elements.userAuthSection.innerHTML = `
       <div class="user-profile-badge" title="${isActive ? 'Cuenta Activa con permisos' : 'Cuenta Pendiente de Activación'}">
         <span class="user-avatar-dot" style="${!isActive ? 'background: var(--status-progress); box-shadow: 0 0 6px var(--status-progress);' : ''}"></span>
         <span>${escapeHtml(state.currentUser.name || state.currentUser.username)}</span>
         ${!isActive ? '<span style="font-size: 0.68rem; color: var(--status-progress); font-weight: 700;">(Pendiente)</span>' : ''}
         ${isAdmin ? '<span style="font-size: 0.68rem; color: var(--primary); font-weight: 700;">👑 Admin</span>' : ''}
+        ${!hasEmail ? '<button class="btn-logout" id="btnAddMyEmail" title="Agregar correo para recuperar contraseña" style="color: var(--priority-medium);">✉️ Correo</button>' : ''}
         <button class="btn-logout" id="btnLogout" title="Cerrar sesión">Salir</button>
       </div>
     `;
+    const btnAddMyEmail = document.getElementById('btnAddMyEmail');
+    if (btnAddMyEmail) {
+      btnAddMyEmail.addEventListener('click', promptUpdateMyEmail);
+    }
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
       btnLogout.addEventListener('click', handleLogout);
@@ -796,18 +831,40 @@ function closeAuthModal() {
 }
 
 function switchAuthTab(tab) {
+  elements.loginForm.style.display = 'none';
+  elements.registerForm.style.display = 'none';
+  if (elements.forgotForm) elements.forgotForm.style.display = 'none';
+  if (elements.resetForm) elements.resetForm.style.display = 'none';
+
+  const showMainTabs = tab === 'login' || tab === 'register';
+  if (elements.authModalTabs) {
+    elements.authModalTabs.style.display = showMainTabs ? 'flex' : 'none';
+  }
+
   if (tab === 'login') {
+    if (elements.authModalTitle) elements.authModalTitle.textContent = 'Acceso de Usuario';
     elements.tabBtnLogin.classList.add('active');
     elements.tabBtnRegister.classList.remove('active');
     elements.loginForm.style.display = 'block';
-    elements.registerForm.style.display = 'none';
     elements.loginUsername.focus();
-  } else {
+  } else if (tab === 'register') {
+    if (elements.authModalTitle) elements.authModalTitle.textContent = 'Acceso de Usuario';
     elements.tabBtnLogin.classList.remove('active');
     elements.tabBtnRegister.classList.add('active');
-    elements.loginForm.style.display = 'none';
     elements.registerForm.style.display = 'block';
     elements.regName.focus();
+  } else if (tab === 'forgot') {
+    if (elements.authModalTitle) elements.authModalTitle.textContent = 'Recuperar Contraseña';
+    if (elements.forgotForm) {
+      elements.forgotForm.style.display = 'block';
+      elements.forgotEmail.focus();
+    }
+  } else if (tab === 'reset') {
+    if (elements.authModalTitle) elements.authModalTitle.textContent = 'Restablecer Contraseña';
+    if (elements.resetForm) {
+      elements.resetForm.style.display = 'block';
+      elements.resetTokenInput.focus();
+    }
   }
 }
 
@@ -839,11 +896,12 @@ async function handleRegisterSubmit(e) {
   e.preventDefault();
   const name = elements.regName.value.trim();
   const username = elements.regUsername.value.trim();
+  const email = elements.regEmail ? elements.regEmail.value.trim() : '';
   const password = elements.regPassword.value;
   const area = elements.regArea ? elements.regArea.value : 'desarrollo';
 
   try {
-    const data = await api.register({ name, username, password, area });
+    const data = await api.register({ name, username, email, password, area });
     state.currentUser = data.user;
     state.currentArea = data.user.area || 'desarrollo';
     renderAuthSection();
@@ -852,6 +910,65 @@ async function handleRegisterSubmit(e) {
     await loadData();
   } catch (error) {
     showToast(error.message || 'Error al registrar la cuenta', 'error');
+  }
+}
+
+async function handleForgotSubmit(e) {
+  e.preventDefault();
+  const email = elements.forgotEmail.value.trim();
+  if (!email) {
+    showToast('Ingresa tu correo electrónico', 'error');
+    return;
+  }
+
+  try {
+    const data = await api.forgotPassword(email);
+    showToast(data.message, 'success');
+    switchAuthTab('reset');
+  } catch (error) {
+    showToast(error.message || 'Error al enviar correo de recuperación', 'error');
+  }
+}
+
+async function handleResetSubmit(e) {
+  e.preventDefault();
+  const token = elements.resetTokenInput.value.trim();
+  const password = elements.resetNewPassword.value;
+  const confirmPassword = elements.resetConfirmPassword.value;
+
+  if (!token) {
+    showToast('Ingresa el código de recuperación', 'error');
+    return;
+  }
+  if (password.length < 6) {
+    showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+    return;
+  }
+  if (password !== confirmPassword) {
+    showToast('Las contraseñas no coinciden', 'error');
+    return;
+  }
+
+  try {
+    const data = await api.resetPassword(token, password);
+    showToast(data.message, 'success');
+    elements.resetForm.reset();
+    switchAuthTab('login');
+  } catch (error) {
+    showToast(error.message || 'Error al restablecer la contraseña', 'error');
+  }
+}
+
+async function promptUpdateMyEmail() {
+  const email = prompt('Ingresa tu correo electrónico para habilitar la recuperación de contraseña:', state.currentUser?.email || '');
+  if (!email || !email.trim()) return;
+  try {
+    const res = await api.updateMyEmail(email.trim());
+    state.currentUser = res.user;
+    renderAuthSection();
+    showToast('Correo electrónico guardado correctamente', 'success');
+  } catch (error) {
+    showToast(error.message || 'Error al guardar correo', 'error');
   }
 }
 
@@ -898,6 +1015,12 @@ async function loadAndRenderUsers() {
             </div>
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.2rem; flex-wrap: wrap;">
               <span style="font-size: 0.72rem; color: var(--text-dim);">Registrado: ${new Date(u.created_at).toLocaleDateString()}</span>
+              <span style="font-size: 0.72rem; color: ${u.email ? 'var(--text-secondary)' : 'var(--priority-medium)'};">
+                ✉️ ${u.email ? escapeHtml(u.email) : 'Sin correo'}
+              </span>
+              <button type="button" class="btn btn-secondary" onclick="window.app.promptSetUserEmail(${u.id}, '${escapeHtml(u.email || '')}')" style="padding: 0.15rem 0.45rem; font-size: 0.7rem;" title="Asignar o cambiar correo">
+                ✏️ Correo
+              </button>
               
               <!-- Selector de Área por Usuario -->
               <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
@@ -959,6 +1082,23 @@ async function changeUserArea(id, newArea) {
     await loadAndRenderUsers();
   } catch (error) {
     showToast(error.message || 'Error al actualizar área del usuario', 'error');
+  }
+}
+
+async function promptSetUserEmail(id, currentEmail = '') {
+  const email = prompt('Ingresa el correo electrónico para este usuario:', currentEmail);
+  if (email === null) return;
+  const trimmed = email.trim();
+  if (!trimmed) {
+    showToast('El correo no puede estar vacío', 'error');
+    return;
+  }
+  try {
+    await api.setUserEmail(id, trimmed);
+    showToast('Correo del usuario actualizado correctamente', 'success');
+    await loadAndRenderUsers();
+  } catch (error) {
+    showToast(error.message || 'Error al actualizar correo del usuario', 'error');
   }
 }
 
@@ -1077,11 +1217,19 @@ function setupEventListeners() {
   elements.btnCloseAuthModal.addEventListener('click', closeAuthModal);
   elements.btnCancelAuthModal.addEventListener('click', closeAuthModal);
   elements.btnCancelRegModal.addEventListener('click', closeAuthModal);
+  if (elements.btnCancelForgotModal) elements.btnCancelForgotModal.addEventListener('click', closeAuthModal);
+  if (elements.btnCancelResetModal) elements.btnCancelResetModal.addEventListener('click', closeAuthModal);
+  if (elements.btnShowForgot) elements.btnShowForgot.addEventListener('click', () => switchAuthTab('forgot'));
+  if (elements.btnBackToLogin) elements.btnBackToLogin.addEventListener('click', () => switchAuthTab('login'));
+  if (elements.btnGoToResetWithCode) elements.btnGoToResetWithCode.addEventListener('click', () => switchAuthTab('reset'));
+  if (elements.btnBackToForgot) elements.btnBackToForgot.addEventListener('click', () => switchAuthTab('forgot'));
   elements.authModal.addEventListener('click', (e) => {
     if (e.target === elements.authModal) closeAuthModal();
   });
   elements.loginForm.addEventListener('submit', handleLoginSubmit);
   elements.registerForm.addEventListener('submit', handleRegisterSubmit);
+  if (elements.forgotForm) elements.forgotForm.addEventListener('submit', handleForgotSubmit);
+  if (elements.resetForm) elements.resetForm.addEventListener('submit', handleResetSubmit);
 
   // Modal Usuarios (Admin)
   if (elements.btnAdminUsers) {
@@ -1145,5 +1293,6 @@ window.app = {
   deleteTask,
   toggleTaskStatus,
   toggleUserStatus,
-  changeUserArea
+  changeUserArea,
+  promptSetUserEmail
 };
