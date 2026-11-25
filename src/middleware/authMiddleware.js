@@ -21,15 +21,41 @@ function requireAuth(req, res, next) {
 
   const token = parts[1];
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
+    decoded = jwt.verify(token, JWT_SECRET);
   } catch (err) {
     return res.status(401).json({ 
       error: 'Sesión expirada o token inválido. Por favor inicia sesión nuevamente.' 
     });
   }
+
+  refreshUserFromDb(decoded)
+    .then((user) => {
+      if (!user) {
+        return res.status(401).json({ error: 'La cuenta ya no existe. Inicia sesión nuevamente.' });
+      }
+      req.user = user;
+      next();
+    })
+    .catch(() => res.status(500).json({ error: 'Error al validar la sesión.' }));
+}
+
+// Lee rol/área/estado actuales desde la BD para que los cambios (ej. ascender a admin)
+// apliquen de inmediato sin esperar a que expire el token.
+async function refreshUserFromDb(decoded) {
+  const userModel = require('../models/userModel');
+  const fresh = await userModel.findById(decoded.id);
+  if (!fresh) return null;
+  return {
+    id: fresh.id,
+    username: fresh.username,
+    name: fresh.name,
+    email: fresh.email || null,
+    role: fresh.role,
+    area: fresh.area,
+    is_active: !!fresh.is_active
+  };
 }
 
 function requireActiveUser(req, res, next) {
@@ -70,15 +96,21 @@ function attachUserIfExists(req, res, next) {
 
   const parts = authHeader.split(' ');
   if (parts.length === 2 && parts[0] === 'Bearer') {
+    let decoded = null;
     try {
-      const decoded = jwt.verify(parts[1], JWT_SECRET);
-      req.user = decoded;
+      decoded = jwt.verify(parts[1], JWT_SECRET);
     } catch (err) {
-      req.user = null;
+      decoded = null;
     }
-  } else {
-    req.user = null;
+    if (!decoded) {
+      req.user = null;
+      return next();
+    }
+    return refreshUserFromDb(decoded)
+      .then((user) => { req.user = user; next(); })
+      .catch(() => { req.user = null; next(); });
   }
+  req.user = null;
   next();
 }
 

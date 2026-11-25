@@ -1022,13 +1022,22 @@ async function loadAndRenderUsers() {
                 ✏️ Correo
               </button>
               
+              <!-- Selector de Rol por Usuario -->
+              <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Rol:</span>
+                <select class="form-select" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; height: auto; border-radius: var(--radius-sm);" onchange="window.app.changeUserRole(${u.id}, this.value)" ${isMasterAdmin ? 'disabled' : ''}>
+                  <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>👤 Usuario</option>
+                  <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👑 Administrador</option>
+                </select>
+              </div>
+
               <!-- Selector de Área por Usuario -->
               <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
                 <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Área:</span>
-                <select class="form-select" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; height: auto; border-radius: var(--radius-sm);" onchange="window.app.changeUserArea(${u.id}, this.value)" ${isMasterAdmin ? 'disabled' : ''}>
+                <select class="form-select" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; height: auto; border-radius: var(--radius-sm);" onchange="window.app.changeUserArea(${u.id}, this.value)" ${isMasterAdmin || u.role === 'admin' ? 'disabled' : ''}>
                   <option value="desarrollo" ${u.area === 'desarrollo' ? 'selected' : ''}>💻 Desarrollo Web</option>
                   <option value="diseno" ${u.area === 'diseno' ? 'selected' : ''}>🎨 Diseño</option>
-                  ${isMasterAdmin ? '<option value="todas" selected>👑 Acceso Total</option>' : ''}
+                  ${isMasterAdmin || u.role === 'admin' ? '<option value="todas" selected>👑 Acceso Total</option>' : ''}
                 </select>
               </div>
             </div>
@@ -1082,6 +1091,22 @@ async function changeUserArea(id, newArea) {
     await loadAndRenderUsers();
   } catch (error) {
     showToast(error.message || 'Error al actualizar área del usuario', 'error');
+  }
+}
+
+async function changeUserRole(id, newRole) {
+  const label = newRole === 'admin' ? 'Administrador (podrá ver y gestionar ambas áreas y usuarios)' : 'Usuario';
+  if (!confirm(`¿Asignar el rol de ${label}?`)) {
+    await loadAndRenderUsers();
+    return;
+  }
+  try {
+    await api.setUserRole(id, newRole);
+    showToast('Rol del usuario actualizado correctamente', 'success');
+    await loadAndRenderUsers();
+  } catch (error) {
+    showToast(error.message || 'Error al actualizar rol del usuario', 'error');
+    await loadAndRenderUsers();
   }
 }
 
@@ -1223,9 +1248,7 @@ function setupEventListeners() {
   if (elements.btnBackToLogin) elements.btnBackToLogin.addEventListener('click', () => switchAuthTab('login'));
   if (elements.btnGoToResetWithCode) elements.btnGoToResetWithCode.addEventListener('click', () => switchAuthTab('reset'));
   if (elements.btnBackToForgot) elements.btnBackToForgot.addEventListener('click', () => switchAuthTab('forgot'));
-  elements.authModal.addEventListener('click', (e) => {
-    if (e.target === elements.authModal) closeAuthModal();
-  });
+  // El modal de autenticación solo se cierra con la X o los botones Cancelar
   elements.loginForm.addEventListener('submit', handleLoginSubmit);
   elements.registerForm.addEventListener('submit', handleRegisterSubmit);
   if (elements.forgotForm) elements.forgotForm.addEventListener('submit', handleForgotSubmit);
@@ -1281,7 +1304,6 @@ function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (elements.taskModal.classList.contains('is-open')) closeModal();
-      if (elements.authModal.classList.contains('is-open')) closeAuthModal();
       if (elements.usersModal.classList.contains('is-open')) closeUsersModal();
     }
   });
@@ -1294,5 +1316,6 @@ window.app = {
   toggleTaskStatus,
   toggleUserStatus,
   changeUserArea,
+  changeUserRole,
   promptSetUserEmail
 };

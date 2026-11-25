@@ -130,6 +130,30 @@ const userModel = {
     return await this.findById(id);
   },
 
+  async setRole(id, role) {
+    const user = await db('users').where({ id }).first();
+    if (!user) return null;
+
+    if (!['user', 'admin'].includes(role)) {
+      throw new Error('Rol inválido. Debe ser "user" o "admin".');
+    }
+    if (user.username === 'wilyos' && role !== 'admin') {
+      throw new Error('No es posible quitar el rol de administrador al administrador maestro wilyos.');
+    }
+
+    const updates = { role };
+    if (role === 'admin') {
+      // Un admin ve ambas áreas y queda activo
+      updates.area = 'todas';
+      updates.is_active = true;
+    } else if (user.area === 'todas') {
+      updates.area = 'desarrollo';
+    }
+
+    await db('users').where({ id }).update(updates);
+    return await this.findById(id);
+  },
+
   async comparePassword(plainPassword, passwordHash) {
     return await bcrypt.compare(plainPassword, passwordHash);
   }

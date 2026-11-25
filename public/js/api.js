@@ -151,6 +151,17 @@ export const api = {
     return data;
   },
 
+  async setUserRole(id, role) {
+    const res = await fetch(`${API_BASE}/users/${id}/role`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ role })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al cambiar rol del usuario');
+    return data;
+  },
+
   async setUserEmail(id, email) {
     const res = await fetch(`${API_BASE}/users/${id}/email`, {
       method: 'PATCH',

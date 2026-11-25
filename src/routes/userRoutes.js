@@ -63,6 +63,27 @@ router.patch('/:id/area', async (req, res) => {
   }
 });
 
+// PATCH /api/users/:id/role - Asignar rol (user o admin)
+router.patch('/:id/role', async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!role) {
+      return res.status(400).json({ error: 'El campo role es obligatorio.' });
+    }
+    const updatedUser = await userModel.setRole(req.params.id, role);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+    res.json({
+      message: `Rol de ${updatedUser.username} actualizado a ${updatedUser.role}.`,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error al cambiar rol del usuario:', error);
+    res.status(400).json({ error: error.message || 'Error al cambiar rol del usuario.' });
+  }
+});
+
 // PATCH /api/users/:id/email - Asignar o actualizar correo de un usuario (admin)
 router.patch('/:id/email', async (req, res) => {
   try {
