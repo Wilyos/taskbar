@@ -259,6 +259,52 @@ async function initDb() {
       }
     ]);
   }
+
+  // 4. Tabla de Órdenes de Operación / Procesos de Producción (Panel General)
+  const hasOperationsTable = await db.schema.hasTable('operations');
+  if (!hasOperationsTable) {
+    console.log('🏭 Creando tabla "operations"...');
+    await db.schema.createTable('operations', (table) => {
+      table.increments('id').primary();
+      table.string('op_number', 60).nullable();
+      table.string('title', 255).notNullable();
+      table.string('client', 150).nullable();
+      table.text('description').nullable();
+      table.string('status', 50).notNullable().defaultTo('op');
+      table.string('priority', 50).notNullable().defaultTo('medium');
+      table.string('due_date', 50).nullable();
+      table.integer('position').notNullable().defaultTo(0);
+      table.integer('created_by').nullable().references('id').inTable('users').onDelete('SET NULL');
+      table.timestamp('created_at').defaultTo(db.fn.now());
+      table.timestamp('updated_at').defaultTo(db.fn.now());
+    });
+
+    console.log('🌱 Insertando órdenes de operación de ejemplo iniciales...');
+    await db('operations').insert([
+      {
+        op_number: 'OP-001',
+        title: 'Empaque caja plegadiza 500u',
+        client: 'Cliente Ejemplo',
+        description: 'Revisar medidas troquel y especificaciones de papel.',
+        status: 'op',
+        priority: 'high',
+        due_date: tomorrow,
+        position: 0,
+        created_by: defaultOwnerId
+      },
+      {
+        op_number: 'OP-002',
+        title: 'Etiquetas adhesivas full color',
+        client: 'Cliente Ejemplo',
+        description: 'Tiraje de 1000 unidades en propalcote 150g.',
+        status: 'impresion',
+        priority: 'medium',
+        due_date: nextWeek,
+        position: 0,
+        created_by: defaultOwnerId
+      }
+    ]);
+  }
 }
 
 module.exports = { db, initDb };

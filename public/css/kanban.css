@@ -64,6 +64,44 @@
   box-shadow: 0 0 10px var(--status-done);
 }
 
+/* Tablero de Producción / OP (5 columnas) */
+.ops-kanban-board {
+  grid-template-columns: repeat(5, minmax(225px, 1fr));
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.75rem;
+}
+
+.col-op .column-indicator {
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+.col-op-diseno .column-indicator {
+  background: #d946ef;
+  box-shadow: 0 0 8px #d946ef;
+}
+
+.col-op-impresion .column-indicator {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.col-op-acabados .column-indicator {
+  background: #8b5cf6;
+  box-shadow: 0 0 8px #8b5cf6;
+}
+
+.col-op-done .column-indicator {
+  background: var(--status-done);
+  box-shadow: 0 0 10px var(--status-done);
+}
+
+.col-op-done .card-title {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+
 .column-title {
   font-size: 0.95rem;
   font-weight: 700;
@@ -238,11 +276,23 @@
 
 /* Responsive Kanban */
 @media (max-width: 1024px) {
-  .kanban-board {
+  .kanban-board:not(.ops-kanban-board) {
     grid-template-columns: 1fr;
     gap: 1.25rem;
   }
-  .kanban-column {
+  .kanban-board:not(.ops-kanban-board) .kanban-column {
+    min-height: auto;
+    max-height: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .ops-kanban-board {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    overflow-x: visible;
+  }
+  .ops-kanban-board .kanban-column {
     min-height: auto;
     max-height: none;
   }

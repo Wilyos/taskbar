@@ -270,5 +270,71 @@ export const api = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al eliminar la tarea');
     return data;
+  },
+
+  // Panel de Producción / Órdenes de Operación (OP)
+  async getOperations(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.search) params.append('search', filters.search);
+    if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+    if (filters.priority && filters.priority !== 'all') params.append('priority', filters.priority);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API_BASE}/operations${query}`, {
+      headers: getHeaders()
+    });
+    if (!res.ok) throw new Error('Error al cargar las órdenes de operación');
+    return await res.json();
+  },
+
+  async getOperationStats() {
+    const res = await fetch(`${API_BASE}/operations/stats`, {
+      headers: getHeaders()
+    });
+    if (!res.ok) throw new Error('Error al cargar estadísticas de producción');
+    return await res.json();
+  },
+
+  async createOperation(opData) {
+    const res = await fetch(`${API_BASE}/operations`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(opData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al crear la orden');
+    return data;
+  },
+
+  async updateOperation(id, opData) {
+    const res = await fetch(`${API_BASE}/operations/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(opData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al actualizar la orden');
+    return data;
+  },
+
+  async updateOperationStatus(id, status, position = 0) {
+    const res = await fetch(`${API_BASE}/operations/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status, position })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al cambiar estado de la orden');
+    return data;
+  },
+
+  async deleteOperation(id) {
+    const res = await fetch(`${API_BASE}/operations/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al eliminar la orden');
+    return data;
   }
 };

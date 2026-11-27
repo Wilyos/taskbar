@@ -7,6 +7,7 @@ const { initDb } = require('./src/db');
 const taskRoutes = require('./src/routes/taskRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
+const operationRoutes = require('./src/routes/operationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +34,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/operations', operationRoutes);
 
 // Fallback para SPA / index.html
 app.get('*', (req, res) => {

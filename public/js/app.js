@@ -1,9 +1,18 @@
 import { api, auth } from './api.js';
 import { initKanbanDnD } from './kanban.js';
 
+const OP_STAGES = [
+  { key: 'op', label: 'OP (Orden de Operación)', short: 'OP', icon: '📋' },
+  { key: 'diseno', label: 'Diseño', short: 'Diseño', icon: '🎨' },
+  { key: 'impresion', label: 'Impresión', short: 'Impresión', icon: '🖨️' },
+  { key: 'acabados', label: 'Acabados', short: 'Acabados', icon: '✂️' },
+  { key: 'empacado_finalizado', label: 'Empacado y Finalizado', short: 'Empacado y Finalizado', icon: '📦' }
+];
+
 // Estado de la Aplicación
 const state = {
   tasks: [],
+  operations: [],
   stats: null,
   owners: [],
   currentUser: auth.getUser(),
@@ -18,18 +27,23 @@ const state = {
     category: 'all',
     user_id: 'all'
   },
-  editingTaskId: null
+  editingTaskId: null,
+  editingOpId: null
 };
 
 // Elementos DOM
 const elements = {
+  appContainer: document.querySelector('.app-container'),
+
   // Navigation & Switcher de Tableros / Áreas
   areaNavContainer: document.getElementById('areaNavContainer'),
   boardSwitcherWrap: document.getElementById('boardSwitcherWrap'),
   tabBoardMine: document.getElementById('tabBoardMine'),
   tabBoardGeneral: document.getElementById('tabBoardGeneral'),
+  tabBoardOps: document.getElementById('tabBoardOps'),
   badgeCountMine: document.getElementById('badgeCountMine'),
   badgeCountGeneral: document.getElementById('badgeCountGeneral'),
+  badgeCountOps: document.getElementById('badgeCountOps'),
   areaSwitcherWrap: document.getElementById('areaSwitcherWrap'),
   tabAreaAll: document.getElementById('tabAreaAll'),
   tabAreaDev: document.getElementById('tabAreaDev'),
@@ -39,20 +53,36 @@ const elements = {
   userAreaBadge: document.getElementById('userAreaBadge'),
   userAreaBadgeIcon: document.getElementById('userAreaBadgeIcon'),
   userAreaBadgeText: document.getElementById('userAreaBadgeText'),
+  opsModeBadge: document.getElementById('opsModeBadge'),
+  opsModeBadgeIcon: document.getElementById('opsModeBadgeIcon'),
+  opsModeBadgeText: document.getElementById('opsModeBadgeText'),
 
   // Views
   kanbanView: document.getElementById('kanbanView'),
+  opsKanbanView: document.getElementById('opsKanbanView'),
   listView: document.getElementById('listView'),
   btnViewKanban: document.getElementById('btnViewKanban'),
   btnViewList: document.getElementById('btnViewList'),
 
-  // Columns Kanban
+  // Columns Kanban Tareas
   colTodoList: document.getElementById('colTodoList'),
   colProgressList: document.getElementById('colProgressList'),
   colDoneList: document.getElementById('colDoneList'),
   colTodoCount: document.getElementById('colTodoCount'),
   colProgressCount: document.getElementById('colProgressCount'),
   colDoneCount: document.getElementById('colDoneCount'),
+
+  // Columns Kanban Producción / OP
+  colOpList: document.getElementById('colOpList'),
+  colOpDisenoList: document.getElementById('colOpDisenoList'),
+  colOpImpresionList: document.getElementById('colOpImpresionList'),
+  colOpAcabadosList: document.getElementById('colOpAcabadosList'),
+  colOpDoneList: document.getElementById('colOpDoneList'),
+  colOpCount: document.getElementById('colOpCount'),
+  colOpDisenoCount: document.getElementById('colOpDisenoCount'),
+  colOpImpresionCount: document.getElementById('colOpImpresionCount'),
+  colOpAcabadosCount: document.getElementById('colOpAcabadosCount'),
+  colOpDoneCount: document.getElementById('colOpDoneCount'),
 
   // List View Container
   taskListItems: document.getElementById('taskListItems'),
@@ -72,6 +102,7 @@ const elements = {
   // Theme & Actions
   btnThemeToggle: document.getElementById('btnThemeToggle'),
   btnNewTask: document.getElementById('btnNewTask'),
+  btnNewOp: document.getElementById('btnNewOp'),
   userAuthSection: document.getElementById('userAuthSection'),
   btnAdminUsers: document.getElementById('btnAdminUsers'),
 
@@ -91,6 +122,20 @@ const elements = {
   inputDueDate: document.getElementById('taskDueDate'),
   groupTaskOwner: document.getElementById('groupTaskOwner'),
   taskOwner: document.getElementById('taskOwner'),
+
+  // Modal Producción / OP
+  opModal: document.getElementById('opModal'),
+  opForm: document.getElementById('opForm'),
+  opModalTitle: document.getElementById('opModalTitle'),
+  btnCloseOpModal: document.getElementById('btnCloseOpModal'),
+  btnCancelOpModal: document.getElementById('btnCancelOpModal'),
+  opNumber: document.getElementById('opNumber'),
+  opClient: document.getElementById('opClient'),
+  opTitle: document.getElementById('opTitle'),
+  opDesc: document.getElementById('opDesc'),
+  opStatus: document.getElementById('opStatus'),
+  opPriority: document.getElementById('opPriority'),
+  opDueDate: document.getElementById('opDueDate'),
 
   // Modal Autenticación
   authModal: document.getElementById('authModal'),
@@ -142,7 +187,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
 
   initKanbanDnD({
+    container: elements.kanbanView,
     onTaskMoved: handleTaskMoved
+  });
+
+  initKanbanDnD({
+    container: elements.opsKanbanView,
+    onTaskMoved: handleOpMoved
   });
 
   // Validar sesión si hay token guardado
@@ -183,22 +234,20 @@ function renderAuthSection() {
   const isRegularUser = isAuth && state.currentUser.role === 'user';
   const isActive = isAuth && (isAdmin || state.currentUser.is_active);
 
-  // Control de Tablero (Personal vs General)
+  // Control de Tablero (Personal vs General vs Producción / OP)
+  const savedBoard = localStorage.getItem('taskbar_board');
   if (isAuth) {
     if (elements.tabBoardMine) elements.tabBoardMine.style.display = 'inline-flex';
-    const savedBoard = localStorage.getItem('taskbar_board');
-    state.currentBoard = (savedBoard === 'mine' || savedBoard === 'general') ? savedBoard : 'mine';
+    state.currentBoard = (savedBoard === 'mine' || savedBoard === 'general' || savedBoard === 'operations') ? savedBoard : 'mine';
   } else {
     if (elements.tabBoardMine) elements.tabBoardMine.style.display = 'none';
-    state.currentBoard = 'general';
+    state.currentBoard = (savedBoard === 'operations') ? 'operations' : 'general';
   }
 
-  // Control de Área: usuario regular vs admin / visitante
+  // Control de Área: usuario regular vs admin / visitante (actualiza el valor y los badges; updateBoardUI gestiona visibilidad)
   if (isRegularUser) {
     state.currentArea = state.currentUser.area || 'desarrollo';
-    if (elements.areaSwitcherWrap) elements.areaSwitcherWrap.style.display = 'none';
     if (elements.userAreaBadge) {
-      elements.userAreaBadge.style.display = 'inline-flex';
       const isDesign = state.currentArea === 'diseno';
       elements.userAreaBadge.className = isDesign ? 'user-area-badge is-design' : 'user-area-badge';
       if (elements.userAreaBadgeIcon) elements.userAreaBadgeIcon.textContent = isDesign ? '🎨' : '💻';
@@ -206,10 +255,6 @@ function renderAuthSection() {
         elements.userAreaBadgeText.textContent = isDesign ? 'Diseño Gráfico & UI' : 'Desarrollo Web';
       }
     }
-  } else {
-    // Admin o Visitante público
-    if (elements.areaSwitcherWrap) elements.areaSwitcherWrap.style.display = 'flex';
-    if (elements.userAreaBadge) elements.userAreaBadge.style.display = 'none';
   }
 
   updateBoardUI();
@@ -253,18 +298,79 @@ function renderAuthSection() {
   }
 }
 
-// Actualizar visualmente la pestaña de tablero activo
+// Actualizar visualmente la pestaña de tablero activo y controles de Producción / OP
 function updateBoardUI() {
-  const isMine = state.currentBoard === 'mine' && auth.isAuthenticated() && state.currentUser;
-  if (elements.tabBoardMine && elements.tabBoardGeneral) {
+  const isAuth = auth.isAuthenticated() && state.currentUser;
+  const isAdmin = isAuth && state.currentUser.role === 'admin';
+  const isRegularUser = isAuth && state.currentUser.role === 'user';
+  const isOps = state.currentBoard === 'operations';
+  const isMine = !isOps && state.currentBoard === 'mine' && isAuth;
+  const isGeneral = !isOps && !isMine;
+
+  if (elements.tabBoardMine) {
     elements.tabBoardMine.classList.toggle('active', !!isMine);
     elements.tabBoardMine.setAttribute('aria-selected', isMine ? 'true' : 'false');
-    elements.tabBoardGeneral.classList.toggle('active', !isMine);
-    elements.tabBoardGeneral.setAttribute('aria-selected', !isMine ? 'true' : 'false');
   }
-  if (elements.filterUser) {
-    elements.filterUser.style.display = isMine ? 'none' : 'inline-block';
+  if (elements.tabBoardGeneral) {
+    elements.tabBoardGeneral.classList.toggle('active', isGeneral);
+    elements.tabBoardGeneral.setAttribute('aria-selected', isGeneral ? 'true' : 'false');
   }
+  if (elements.tabBoardOps) {
+    elements.tabBoardOps.classList.toggle('active', isOps);
+    elements.tabBoardOps.setAttribute('aria-selected', isOps ? 'true' : 'false');
+  }
+
+  if (elements.appContainer) {
+    elements.appContainer.classList.toggle('is-ops-mode', isOps);
+  }
+
+  if (isOps) {
+    if (elements.areaSwitcherWrap) elements.areaSwitcherWrap.style.display = 'none';
+    if (elements.userAreaBadge) elements.userAreaBadge.style.display = 'none';
+    if (elements.filterUser) elements.filterUser.style.display = 'none';
+    if (elements.filterCategory) elements.filterCategory.style.display = 'none';
+    if (elements.btnNewTask) elements.btnNewTask.style.display = 'none';
+    if (elements.btnNewOp) elements.btnNewOp.style.display = isAdmin ? 'inline-flex' : 'none';
+
+    if (elements.opsModeBadge) {
+      elements.opsModeBadge.style.display = 'inline-flex';
+      elements.opsModeBadge.className = isAdmin ? 'ops-mode-badge is-admin' : 'ops-mode-badge';
+      if (elements.opsModeBadgeIcon) elements.opsModeBadgeIcon.textContent = isAdmin ? '👑' : '👁️';
+      if (elements.opsModeBadgeText) {
+        elements.opsModeBadgeText.textContent = isAdmin
+          ? 'Modo Admin: puedes crear, editar y mover procesos'
+          : 'Panel General (Solo lectura — modificable solo por administradores)';
+      }
+    }
+
+    document.querySelectorAll('.btn-add-op-quick').forEach(btn => {
+      btn.style.display = isAdmin ? 'flex' : 'none';
+    });
+
+    if (elements.searchInput) {
+      elements.searchInput.placeholder = 'Buscar por #OP, título, cliente o descripción...';
+    }
+  } else {
+    if (elements.opsModeBadge) elements.opsModeBadge.style.display = 'none';
+    if (elements.btnNewOp) elements.btnNewOp.style.display = 'none';
+    if (elements.btnNewTask) elements.btnNewTask.style.display = 'inline-flex';
+    if (elements.filterCategory) elements.filterCategory.style.display = 'inline-block';
+    if (elements.filterUser) elements.filterUser.style.display = isMine ? 'none' : 'inline-block';
+
+    if (isRegularUser) {
+      if (elements.areaSwitcherWrap) elements.areaSwitcherWrap.style.display = 'none';
+      if (elements.userAreaBadge) elements.userAreaBadge.style.display = 'inline-flex';
+    } else {
+      if (elements.areaSwitcherWrap) elements.areaSwitcherWrap.style.display = 'flex';
+      if (elements.userAreaBadge) elements.userAreaBadge.style.display = 'none';
+    }
+
+    if (elements.searchInput) {
+      elements.searchInput.placeholder = 'Buscar por título o descripción...';
+    }
+  }
+
+  applyActiveViewVisibility();
 }
 
 // Conmutar tablero (Mi Tablero / Tablero General)
@@ -324,6 +430,24 @@ function getEffectiveBoardAndUser() {
 // Carga de Datos
 async function loadData() {
   try {
+    if (state.currentBoard === 'operations') {
+      const [ops, stats] = await Promise.all([
+        api.getOperations({
+          search: state.filters.search,
+          priority: state.filters.priority
+        }),
+        api.getOperationStats()
+      ]);
+
+      state.operations = ops;
+      state.stats = stats;
+
+      renderStats();
+      renderCurrentView();
+      updateAreaCounters();
+      return;
+    }
+
     if (state.currentUser && state.currentUser.role === 'user') {
       state.currentArea = state.currentUser.area || 'desarrollo';
     }
@@ -364,11 +488,12 @@ async function updateAreaCounters() {
     const isAuth = auth.isAuthenticated() && state.currentUser;
     const isAdminOrGuest = !state.currentUser || state.currentUser.role === 'admin';
     const { board, userId } = getEffectiveBoardAndUser();
+    const effectiveBoard = board === 'operations' ? 'general' : board;
 
     if (isAdminOrGuest && elements.badgeCountDev && elements.badgeCountDesign) {
       const [devStats, designStats] = await Promise.all([
-        api.getStats('desarrollo', board, userId),
-        api.getStats('diseno', board, userId)
+        api.getStats('desarrollo', effectiveBoard, userId),
+        api.getStats('diseno', effectiveBoard, userId)
       ]);
       elements.badgeCountDev.textContent = devStats.total || 0;
       elements.badgeCountDesign.textContent = designStats.total || 0;
@@ -383,6 +508,11 @@ async function updateAreaCounters() {
       const mineStats = await api.getStats(state.currentArea, 'mine', 'all');
       elements.badgeCountMine.textContent = mineStats.total || 0;
     }
+
+    if (elements.badgeCountOps) {
+      const opsStats = await api.getOperationStats();
+      elements.badgeCountOps.textContent = opsStats.total || 0;
+    }
   } catch (e) {
     // No interrumpir si falla el contador secundario
   }
@@ -390,6 +520,15 @@ async function updateAreaCounters() {
 
 // Renderizado según la vista activa
 function renderCurrentView() {
+  if (state.currentBoard === 'operations') {
+    if (state.activeView === 'kanban') {
+      renderOpsKanban();
+    } else {
+      renderOpsList();
+    }
+    return;
+  }
+
   if (state.activeView === 'kanban') {
     renderKanban();
   } else {
@@ -820,6 +959,294 @@ async function deleteTask(id) {
   }
 }
 
+// ============================================================================
+// Panel de Producción / Órdenes de Operación (OP) - Solo modificable por Admin
+// ============================================================================
+
+function getOpStageMeta(stageKey) {
+  return OP_STAGES.find(s => s.key === stageKey) || OP_STAGES[0];
+}
+
+function ensureAdminForOps(actionMessage = 'modificar órdenes de producción') {
+  if (!auth.isAuthenticated()) {
+    showToast(`Debes iniciar sesión como administrador para ${actionMessage}`, 'error');
+    openAuthModal('login');
+    return false;
+  }
+  if (!auth.isAdmin()) {
+    showToast('Solo los administradores pueden modificar el panel de Producción / OP.', 'error');
+    return false;
+  }
+  return true;
+}
+
+function renderOpsKanban() {
+  const groups = {
+    op: [],
+    diseno: [],
+    impresion: [],
+    acabados: [],
+    empacado_finalizado: []
+  };
+
+  state.operations.forEach(item => {
+    const key = groups[item.status] ? item.status : 'op';
+    groups[key].push(item);
+  });
+
+  if (elements.colOpCount) elements.colOpCount.textContent = groups.op.length;
+  if (elements.colOpDisenoCount) elements.colOpDisenoCount.textContent = groups.diseno.length;
+  if (elements.colOpImpresionCount) elements.colOpImpresionCount.textContent = groups.impresion.length;
+  if (elements.colOpAcabadosCount) elements.colOpAcabadosCount.textContent = groups.acabados.length;
+  if (elements.colOpDoneCount) elements.colOpDoneCount.textContent = groups.empacado_finalizado.length;
+
+  if (elements.colOpList) elements.colOpList.innerHTML = renderOpCardsList(groups.op);
+  if (elements.colOpDisenoList) elements.colOpDisenoList.innerHTML = renderOpCardsList(groups.diseno);
+  if (elements.colOpImpresionList) elements.colOpImpresionList.innerHTML = renderOpCardsList(groups.impresion);
+  if (elements.colOpAcabadosList) elements.colOpAcabadosList.innerHTML = renderOpCardsList(groups.acabados);
+  if (elements.colOpDoneList) elements.colOpDoneList.innerHTML = renderOpCardsList(groups.empacado_finalizado);
+}
+
+function renderOpCardsList(ops) {
+  if (ops.length === 0) {
+    return `<div class="empty-state" style="padding: 1.5rem 0.5rem; font-size: 0.8rem;">Sin órdenes en esta etapa</div>`;
+  }
+
+  const isAdmin = auth.isAdmin();
+
+  return ops.map(op => {
+    const stageIdx = OP_STAGES.findIndex(s => s.key === op.status);
+    const hasPrev = stageIdx > 0;
+    const hasNext = stageIdx >= 0 && stageIdx < OP_STAGES.length - 1;
+
+    return `
+      <div class="kanban-card" draggable="${isAdmin ? 'true' : 'false'}" data-id="${op.id}" data-status="${op.status}">
+        <div class="card-top-row">
+          <div class="card-tags">
+            ${op.op_number ? `<span class="badge badge-op-number">${escapeHtml(op.op_number)}</span>` : ''}
+            <span class="badge badge-priority-${op.priority}">${formatPriority(op.priority)}</span>
+            ${op.client ? `<span class="badge badge-op-client">🏢 ${escapeHtml(op.client)}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="card-title">${escapeHtml(op.title)}</div>
+        ${op.description ? `<div class="card-desc">${escapeHtml(op.description)}</div>` : ''}
+
+        <div class="card-bottom-row">
+          ${renderDueDateBadge(op.due_date)}
+          ${isAdmin ? `
+            <div class="card-actions">
+              ${hasPrev ? `<button class="btn-card-action" onclick="window.app.moveOpStep(${op.id}, -1)" title="Retroceder etapa">◀</button>` : ''}
+              ${hasNext ? `<button class="btn-card-action" onclick="window.app.moveOpStep(${op.id}, 1)" title="Avanzar etapa">▶</button>` : ''}
+              <button class="btn-card-action" onclick="window.app.openEditOpModal(${op.id})" title="Editar OP">✏️</button>
+              <button class="btn-card-action danger" onclick="window.app.deleteOp(${op.id})" title="Eliminar OP">🗑️</button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderOpsList() {
+  if (state.operations.length === 0) {
+    elements.taskListItems.innerHTML = `
+      <div class="empty-state">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <p>No hay órdenes de operación registradas con los filtros actuales</p>
+      </div>
+    `;
+    return;
+  }
+
+  const isAdmin = auth.isAdmin();
+
+  elements.taskListItems.innerHTML = state.operations.map(op => {
+    const isCompleted = op.status === 'empacado_finalizado';
+    const stageMeta = getOpStageMeta(op.status);
+    return `
+      <div class="list-item-card ${isCompleted ? 'completed-task' : ''}">
+        <div class="task-main-col">
+          <div class="task-info">
+            <span class="task-title">
+              ${op.op_number ? `<code style="margin-right: 0.4rem; color: var(--primary);">${escapeHtml(op.op_number)}</code>` : ''}
+              ${escapeHtml(op.title)}
+            </span>
+            ${op.description ? `<span class="task-desc">${escapeHtml(op.description)}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="task-meta-col">
+          <span class="badge badge-op-stage-${op.status}">${stageMeta.icon} ${stageMeta.short}</span>
+          ${op.client ? `<span class="badge badge-op-client">🏢 ${escapeHtml(op.client)}</span>` : ''}
+          <span class="badge badge-priority-${op.priority}">${formatPriority(op.priority)}</span>
+          ${renderDueDateBadge(op.due_date)}
+        </div>
+
+        <div class="task-actions-col">
+          ${isAdmin ? `
+            <select class="form-select" style="padding: 0.25rem 0.45rem; font-size: 0.75rem; height: auto; width: auto;" onchange="window.app.changeOpStatusInline(${op.id}, this.value)" title="Cambiar proceso">
+              ${OP_STAGES.map(s => `<option value="${s.key}" ${s.key === op.status ? 'selected' : ''}>${s.icon} ${s.short}</option>`).join('')}
+            </select>
+            <button class="btn-icon" onclick="window.app.openEditOpModal(${op.id})" title="Editar OP">✏️</button>
+            <button class="btn-icon" onclick="window.app.deleteOp(${op.id})" title="Eliminar OP" style="color: var(--priority-urgent);">🗑️</button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openCreateOpModal(defaultStatus = 'op') {
+  if (!ensureAdminForOps('crear órdenes de operación')) return;
+
+  state.editingOpId = null;
+  if (elements.opModalTitle) elements.opModalTitle.textContent = 'Nueva Orden de Operación (OP)';
+  if (elements.opForm) elements.opForm.reset();
+  if (elements.opStatus) elements.opStatus.value = defaultStatus || 'op';
+  if (elements.opPriority) elements.opPriority.value = 'medium';
+  if (elements.opModal) elements.opModal.classList.add('is-open');
+  if (elements.opNumber) elements.opNumber.focus();
+}
+
+function openEditOpModal(id) {
+  if (!ensureAdminForOps('editar órdenes de operación')) return;
+
+  const op = state.operations.find(o => o.id === id);
+  if (!op) return;
+
+  state.editingOpId = id;
+  if (elements.opModalTitle) elements.opModalTitle.textContent = 'Editar Orden de Operación';
+  if (elements.opNumber) elements.opNumber.value = op.op_number || '';
+  if (elements.opClient) elements.opClient.value = op.client || '';
+  if (elements.opTitle) elements.opTitle.value = op.title || '';
+  if (elements.opDesc) elements.opDesc.value = op.description || '';
+  if (elements.opStatus) elements.opStatus.value = op.status || 'op';
+  if (elements.opPriority) elements.opPriority.value = op.priority || 'medium';
+  if (elements.opDueDate) elements.opDueDate.value = op.due_date || '';
+
+  if (elements.opModal) elements.opModal.classList.add('is-open');
+  if (elements.opTitle) elements.opTitle.focus();
+}
+
+function closeOpModal() {
+  if (elements.opModal) elements.opModal.classList.remove('is-open');
+  state.editingOpId = null;
+}
+
+async function handleOpFormSubmit(e) {
+  e.preventDefault();
+  if (!ensureAdminForOps('guardar órdenes de operación')) return;
+
+  const title = elements.opTitle.value.trim();
+  if (!title) {
+    showToast('La descripción breve del trabajo es obligatoria', 'error');
+    return;
+  }
+
+  const payload = {
+    op_number: elements.opNumber ? elements.opNumber.value.trim() : null,
+    client: elements.opClient ? elements.opClient.value.trim() : null,
+    title,
+    description: elements.opDesc ? elements.opDesc.value.trim() : null,
+    status: elements.opStatus ? elements.opStatus.value : 'op',
+    priority: elements.opPriority ? elements.opPriority.value : 'medium',
+    due_date: elements.opDueDate && elements.opDueDate.value ? elements.opDueDate.value : null
+  };
+
+  try {
+    if (state.editingOpId) {
+      await api.updateOperation(state.editingOpId, payload);
+      showToast('Orden actualizada correctamente', 'success');
+    } else {
+      await api.createOperation(payload);
+      showToast('Orden creada exitosamente', 'success');
+    }
+    closeOpModal();
+    await loadData();
+  } catch (error) {
+    showToast(error.message || 'Error al guardar la orden', 'error');
+  }
+}
+
+async function handleOpMoved({ id, targetStatus, position }) {
+  if (!ensureAdminForOps('mover procesos en el tablero')) {
+    renderCurrentView();
+    return;
+  }
+
+  const opId = parseInt(id, 10);
+  const op = state.operations.find(o => o.id === opId);
+  if (!op) return;
+
+  const oldStatus = op.status;
+  op.status = targetStatus;
+  op.position = position;
+  renderCurrentView();
+
+  try {
+    await api.updateOperationStatus(opId, targetStatus, position);
+    state.stats = await api.getOperationStats();
+    renderStats();
+    if (oldStatus !== targetStatus) {
+      const stageMeta = getOpStageMeta(targetStatus);
+      showToast(`Orden movida a "${stageMeta.short}"`, 'success');
+    }
+  } catch (error) {
+    showToast(error.message || 'Error al mover la orden', 'error');
+    await loadData();
+  }
+}
+
+async function moveOpStep(id, direction) {
+  if (!ensureAdminForOps('mover procesos')) return;
+  const op = state.operations.find(o => o.id === id);
+  if (!op) return;
+
+  const currentIdx = OP_STAGES.findIndex(s => s.key === op.status);
+  const nextIdx = currentIdx + direction;
+  if (nextIdx < 0 || nextIdx >= OP_STAGES.length) return;
+
+  const nextStage = OP_STAGES[nextIdx];
+  try {
+    await api.updateOperationStatus(id, nextStage.key, 0);
+    showToast(`Orden movida a "${nextStage.short}"`, 'success');
+    await loadData();
+  } catch (error) {
+    showToast(error.message || 'Error al cambiar proceso', 'error');
+  }
+}
+
+async function changeOpStatusInline(id, newStatus) {
+  if (!ensureAdminForOps('cambiar el proceso')) {
+    renderCurrentView();
+    return;
+  }
+  try {
+    await api.updateOperationStatus(id, newStatus, 0);
+    const stageMeta = getOpStageMeta(newStatus);
+    showToast(`Orden movida a "${stageMeta.short}"`, 'success');
+    await loadData();
+  } catch (error) {
+    showToast(error.message || 'Error al cambiar proceso', 'error');
+    await loadData();
+  }
+}
+
+async function deleteOp(id) {
+  if (!ensureAdminForOps('eliminar órdenes de operación')) return;
+  if (!confirm('¿Estás seguro de eliminar esta orden de operación?')) return;
+  try {
+    await api.deleteOperation(id);
+    showToast('Orden eliminada', 'success');
+    await loadData();
+  } catch (error) {
+    showToast(error.message || 'Error al eliminar la orden', 'error');
+  }
+}
+
 // Modal de Autenticación (Login / Registro)
 function openAuthModal(tab = 'login') {
   elements.authModal.classList.add('is-open');
@@ -1122,22 +1549,34 @@ async function promptSetUserEmail(id, currentEmail = '') {
   }
 }
 
+function applyActiveViewVisibility() {
+  const isOps = state.currentBoard === 'operations';
+  const isKanban = state.activeView === 'kanban';
+
+  if (elements.kanbanView) {
+    elements.kanbanView.style.display = !isOps && isKanban ? 'grid' : 'none';
+  }
+  if (elements.opsKanbanView) {
+    elements.opsKanbanView.style.display = isOps && isKanban ? 'grid' : 'none';
+  }
+  if (elements.listView) {
+    elements.listView.style.display = isKanban ? 'none' : 'block';
+  }
+}
+
 // Cambio de Vista (Kanban / Lista)
 function switchView(viewName) {
   state.activeView = viewName;
   localStorage.setItem('taskbar_view', viewName);
 
   if (viewName === 'kanban') {
-    elements.kanbanView.style.display = 'grid';
-    elements.listView.style.display = 'none';
     elements.btnViewKanban.classList.add('active');
     elements.btnViewList.classList.remove('active');
   } else {
-    elements.kanbanView.style.display = 'none';
-    elements.listView.style.display = 'block';
     elements.btnViewKanban.classList.remove('active');
     elements.btnViewList.classList.add('active');
   }
+  applyActiveViewVisibility();
   renderCurrentView();
 }
 
@@ -1186,12 +1625,15 @@ function escapeHtml(str) {
 
 // Event Listeners
 function setupEventListeners() {
-  // Conmutador de Tableros (Mi Tablero / Tablero General)
+  // Conmutador de Tableros (Mi Tablero / Tablero General / Producción OP)
   if (elements.tabBoardMine) {
     elements.tabBoardMine.addEventListener('click', () => switchBoard('mine'));
   }
   if (elements.tabBoardGeneral) {
     elements.tabBoardGeneral.addEventListener('click', () => switchBoard('general'));
+  }
+  if (elements.tabBoardOps) {
+    elements.tabBoardOps.addEventListener('click', () => switchBoard('operations'));
   }
 
   // Conmutador de Áreas (Tabs)
@@ -1212,14 +1654,22 @@ function setupEventListeners() {
   // Cambio de tema
   elements.btnThemeToggle.addEventListener('click', toggleTheme);
 
-  // Nueva tarea
+  // Nueva tarea y Nueva OP
   elements.btnNewTask.addEventListener('click', () => openCreateModal('todo'));
+  if (elements.btnNewOp) {
+    elements.btnNewOp.addEventListener('click', () => openCreateOpModal('op'));
+  }
 
-  // Botones rápidos de agregar en columnas
+  // Botones rápidos de agregar en columnas (tareas vs operaciones)
   document.querySelectorAll('.btn-add-quick').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const col = e.target.closest('.kanban-column');
-      openCreateModal(col ? col.dataset.status : 'todo');
+      const status = col ? col.dataset.status : null;
+      if (btn.classList.contains('btn-add-op-quick')) {
+        openCreateOpModal(status || 'op');
+      } else {
+        openCreateModal(status || 'todo');
+      }
     });
   });
 
@@ -1230,6 +1680,16 @@ function setupEventListeners() {
     if (e.target === elements.taskModal) closeModal();
   });
   elements.taskForm.addEventListener('submit', handleFormSubmit);
+
+  // Modal Producción / OP
+  if (elements.btnCloseOpModal) elements.btnCloseOpModal.addEventListener('click', closeOpModal);
+  if (elements.btnCancelOpModal) elements.btnCancelOpModal.addEventListener('click', closeOpModal);
+  if (elements.opModal) {
+    elements.opModal.addEventListener('click', (e) => {
+      if (e.target === elements.opModal) closeOpModal();
+    });
+  }
+  if (elements.opForm) elements.opForm.addEventListener('submit', handleOpFormSubmit);
 
   // Modal Autenticación
   elements.tabBtnLogin.addEventListener('click', () => switchAuthTab('login'));
@@ -1299,6 +1759,7 @@ function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (elements.taskModal.classList.contains('is-open')) closeModal();
+      if (elements.opModal && elements.opModal.classList.contains('is-open')) closeOpModal();
       if (elements.usersModal.classList.contains('is-open')) closeUsersModal();
     }
   });
@@ -1312,5 +1773,9 @@ window.app = {
   toggleUserStatus,
   changeUserArea,
   changeUserRole,
-  promptSetUserEmail
+  promptSetUserEmail,
+  openEditOpModal,
+  deleteOp,
+  moveOpStep,
+  changeOpStatusInline
 };

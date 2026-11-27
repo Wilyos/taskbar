@@ -72,12 +72,19 @@
           </svg>
           Nueva Tarea
         </button>
+
+        <button id="btnNewOp" class="btn btn-primary" style="display: none;">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Nueva OP
+        </button>
       </div>
     </header>
 
     <!-- Navegación y Conmutador de Tableros / Áreas -->
     <nav class="area-nav" id="areaNavContainer" aria-label="Navegación de Tableros y Áreas">
-      <!-- Conmutador de Tablero Personal vs General -->
+      <!-- Conmutador de Tablero Personal vs General vs Producción -->
       <div class="area-switcher-wrap" id="boardSwitcherWrap">
         <span class="area-label-tag">Tablero:</span>
         <div class="area-switcher" role="tablist">
@@ -90,6 +97,11 @@
             <span class="area-tab-icon">🌐</span>
             <span class="area-tab-title">Tablero General</span>
             <span class="area-pill" id="badgeCountGeneral">0</span>
+          </button>
+          <button type="button" class="area-tab" id="tabBoardOps" data-board="operations" role="tab" aria-selected="false">
+            <span class="area-tab-icon">🏭</span>
+            <span class="area-tab-title">Producción / OP</span>
+            <span class="area-pill" id="badgeCountOps">0</span>
           </button>
         </div>
       </div>
@@ -118,6 +130,12 @@
       <div class="user-area-badge" id="userAreaBadge" style="display: none;">
         <span class="user-area-icon" id="userAreaBadgeIcon">💻</span>
         <span class="user-area-text">Área Asignada: <strong id="userAreaBadgeText">Desarrollo Web</strong></span>
+      </div>
+
+      <!-- Indicador del Panel General de Producción / OP -->
+      <div class="ops-mode-badge" id="opsModeBadge" style="display: none;">
+        <span id="opsModeBadgeIcon">👁️</span>
+        <span id="opsModeBadgeText">Panel General de Producción (Solo lectura)</span>
       </div>
     </nav>
 
@@ -188,6 +206,69 @@
           <button class="btn-add-quick" title="Añadir tarjeta rápida">+</button>
         </div>
         <div class="column-cards-list" id="colDoneList"></div>
+      </section>
+    </main>
+
+    <!-- Contenido: Vista Kanban de Producción / OP (5 procesos) -->
+    <main id="opsKanbanView" class="kanban-board ops-kanban-board" style="display: none;">
+      <section class="kanban-column col-op" data-status="op">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">OP (Orden de Operación)</span>
+            <span class="column-count" id="colOpCount">0</span>
+          </div>
+          <button class="btn-add-quick btn-add-op-quick" title="Añadir orden en OP" style="display: none;">+</button>
+        </div>
+        <div class="column-cards-list" id="colOpList"></div>
+      </section>
+
+      <section class="kanban-column col-op-diseno" data-status="diseno">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">Diseño</span>
+            <span class="column-count" id="colOpDisenoCount">0</span>
+          </div>
+          <button class="btn-add-quick btn-add-op-quick" title="Añadir orden en Diseño" style="display: none;">+</button>
+        </div>
+        <div class="column-cards-list" id="colOpDisenoList"></div>
+      </section>
+
+      <section class="kanban-column col-op-impresion" data-status="impresion">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">Impresión</span>
+            <span class="column-count" id="colOpImpresionCount">0</span>
+          </div>
+          <button class="btn-add-quick btn-add-op-quick" title="Añadir orden en Impresión" style="display: none;">+</button>
+        </div>
+        <div class="column-cards-list" id="colOpImpresionList"></div>
+      </section>
+
+      <section class="kanban-column col-op-acabados" data-status="acabados">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">Acabados</span>
+            <span class="column-count" id="colOpAcabadosCount">0</span>
+          </div>
+          <button class="btn-add-quick btn-add-op-quick" title="Añadir orden en Acabados" style="display: none;">+</button>
+        </div>
+        <div class="column-cards-list" id="colOpAcabadosList"></div>
+      </section>
+
+      <section class="kanban-column col-op-done" data-status="empacado_finalizado">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <span class="column-indicator"></span>
+            <span class="column-title">Empacado y Finalizado</span>
+            <span class="column-count" id="colOpDoneCount">0</span>
+          </div>
+          <button class="btn-add-quick btn-add-op-quick" title="Añadir orden en Empacado y Finalizado" style="display: none;">+</button>
+        </div>
+        <div class="column-cards-list" id="colOpDoneList"></div>
       </section>
     </main>
 
@@ -271,6 +352,75 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancelar</button>
           <button type="submit" class="btn btn-primary" id="btnSubmitModal">Guardar Tarea</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Crear / Editar Orden de Operación (OP) (Solo Admin) -->
+  <div class="modal-backdrop" id="opModal" role="dialog" aria-modal="true" aria-labelledby="opModalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="opModalTitle">Nueva Orden de Operación (OP)</h2>
+        <button type="button" class="btn-icon" id="btnCloseOpModal" title="Cerrar modal">✕</button>
+      </div>
+
+      <form id="opForm">
+        <div class="modal-body">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="opNumber">N° de OP</label>
+              <input type="text" id="opNumber" class="form-input" placeholder="Ej: OP-155" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="opClient">Cliente (opcional)</label>
+              <input type="text" id="opClient" class="form-input" placeholder="Ej: Empresa ABC" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="opTitle">Descripción breve / Trabajo *</label>
+            <input type="text" id="opTitle" class="form-input" placeholder="Ej: Empaque caja plegadiza 500u" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="opDesc">Detalles técnicos (opcional)</label>
+            <textarea id="opDesc" class="form-textarea" placeholder="Material, tiraje, tintas, observaciones..."></textarea>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="opStatus">Proceso Actual</label>
+              <select id="opStatus" class="form-select">
+                <option value="op">📋 OP (Orden de Operación)</option>
+                <option value="diseno">🎨 Diseño</option>
+                <option value="impresion">🖨️ Impresión</option>
+                <option value="acabados">✂️ Acabados</option>
+                <option value="empacado_finalizado">📦 Empacado y Finalizado</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="opPriority">Prioridad</label>
+              <select id="opPriority" class="form-select">
+                <option value="low">🔵 Baja</option>
+                <option value="medium" selected>🟡 Media</option>
+                <option value="high">🟠 Alta</option>
+                <option value="urgent">🔴 Urgente</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="opDueDate">Fecha de Entrega</label>
+            <input type="date" id="opDueDate" class="form-input" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelOpModal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitOpModal">Guardar OP</button>
         </div>
       </form>
     </div>
